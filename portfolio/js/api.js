@@ -278,36 +278,6 @@ const frontend = {
         
         // Naviqasiyanı hər səhifədə güncəllə
         frontend.updateNavigation();
-    },
-
-    // Admin keçidini idarə et
-    updateAdminLink: () => {
-        const adminLink = document.querySelector('a[href="admin.html"]');
-        const token = localStorage.getItem('token');
-        
-        if (adminLink) {
-            if (token) {
-                // Əgər token varsa, istifadəçi məlumatlarını alın və admin olub-olmadığını yoxlayın
-                fetch(`${API_BASE_URL}/auth/me`, {
-                    method: 'GET',
-                    headers: getAuthHeaders()
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.user && data.user.role === 'admin') {
-                        adminLink.style.display = 'block';
-                    } else {
-                        adminLink.style.display = 'none';
-                    }
-                })
-                .catch(error => {
-                    console.error('İstifadəçi məlumatı alınarkən xəta:', error);
-                    adminLink.style.display = 'none';
-                });
-            } else {
-                adminLink.style.display = 'none';
-            }
-        }
     }
 };
 
