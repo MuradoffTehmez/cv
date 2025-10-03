@@ -41,6 +41,9 @@
                         <div class="change-avatar">
                             <input type="file" id="avatarUpload" accept="image/*">
                             <label for="avatarUpload">Şəkli Dəyiş</label>
+                            <div id="uploadProgress" class="upload-progress" style="display: none;">
+                                <span class="spinner"></span> Yüklənir...
+                            </div>
                         </div>
                     </div>
                     <div class="profile-info">
@@ -360,14 +363,34 @@
         });
         
         // Avatar upload
-        document.getElementById('avatarUpload').addEventListener('change', function(e) {
+        document.getElementById('avatarUpload').addEventListener('change', async function(e) {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    document.getElementById('profileImage').src = event.target.result;
+                // Loading indicator-u göstər
+                const uploadProgress = document.getElementById('uploadProgress');
+                const changeAvatarLabel = document.querySelector('.change-avatar label');
+                uploadProgress.style.display = 'block';
+                changeAvatarLabel.style.display = 'none';
+                
+                try {
+                    const result = await userAPI.uploadAvatar(file);
+                    if (result.success) {
+                        showToast('Profil şəkli uğurla yükləndi!', 'success');
+                        // Yeni şəkli göstər
+                        document.getElementById('profileImage').src = result.avatarPath;
+                    } else {
+                        showToast('Profil şəkli yüklənmədi: ' + result.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Xəta:', error);
+                    showToast('Profil şəkli yüklənmədi', 'error');
+                } finally {
+                    // Loading indicator-u gizlət
+                    uploadProgress.style.display = 'none';
+                    changeAvatarLabel.style.display = 'block';
+                    // Input-u təmizlə
+                    e.target.value = '';
                 }
-                reader.readAsDataURL(file);
             }
         });
     </script>

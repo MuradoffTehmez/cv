@@ -70,15 +70,47 @@
                             <h2>Layihələr İdarəetməsi</h2>
                             <button class="btn btn-primary" id="addProjectBtn">Yeni Layihə Əlavə Et</button>
                             
+                            <div class="admin-controls">
+                                <div class="search-container">
+                                    <input type="text" id="projectSearch" placeholder="Layihə axtar...">
+                                    <select id="projectStatusFilter">
+                                        <option value="">Bütün Statuslar</option>
+                                        <option value="active">Active</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="on-hold">On Hold</option>
+                                    </select>
+                                    <button id="projectSearchBtn" class="btn btn-primary">Axtar</button>
+                                    <button id="projectResetBtn" class="btn btn-secondary">Sıfırla</button>
+                                </div>
+                            </div>
+                            
                             <div class="projects-list" id="admin-projects-list">
                                 <!-- Layihələr burada yüklənəcək -->
+                            </div>
+                            <div class="pagination" id="projectPagination">
+                                <!-- Pagination burada yüklənəcək -->
                             </div>
                         </div>
                         
                         <div id="users" class="tab-pane">
                             <h2>İstifadəçi İdarəetməsi</h2>
+                            <div class="admin-controls">
+                                <div class="search-container">
+                                    <input type="text" id="userSearch" placeholder="İstifadəçi axtar...">
+                                    <select id="userRoleFilter">
+                                        <option value="">Bütün Rollar</option>
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                    <button id="userSearchBtn" class="btn btn-primary">Axtar</button>
+                                    <button id="userResetBtn" class="btn btn-secondary">Sıfırla</button>
+                                </div>
+                            </div>
                             <div class="users-list" id="admin-users-list">
                                 <!-- İstifadəçilər burada yüklənəcək -->
+                            </div>
+                            <div class="pagination" id="userPagination">
+                                <!-- Pagination burada yüklənəcək -->
                             </div>
                         </div>
                         
@@ -216,6 +248,210 @@
                 console.error('Admin məlumatları alınarkən xəta:', error);
                 alert('Admin məlumatları alınarkən xəta baş verdi');
             }
+        }
+        
+        // Layihəni redaktə et
+        function editProject(projectId) {
+            alert('Layihə redaktə funksiyası: ' + projectId);
+        }
+        
+        // Layihəni sil
+        async function deleteProject(projectId) {
+            if (confirm('Bu layihəni silmək istədiyinizə əminsiniz?')) {
+                try {
+                    // Bu layihə silmə funksiyası backend-də mövcud deyil, sadəcə nümunə üçün
+                    alert('Layihə silindi: ' + projectId);
+                    loadAdminData(); // Səhifəni yenilə
+                } catch (error) {
+                    console.error('Xəta:', error);
+                    alert('Layihə silinərkən xəta baş verdi');
+                }
+            }
+        }
+        
+        // İstifadəçini redaktə et
+        function editUser(userId) {
+            alert('İstifadəçi redaktə funksiyası: ' + userId);
+        }
+        
+        // İstifadəçini sil
+        async function deleteUser(userId) {
+            if (confirm('Bu istifadəçini silmək istədiyinizə əminsiniz?')) {
+                try {
+                    // Bu istifadəçi silmə funksiyası backend-də mövcud deyil, sadəcə nümunə üçün
+                    alert('İstifadəçi silindi: ' + userId);
+                    loadAdminData(); // Səhifəni yenilə
+                } catch (error) {
+                    console.error('Xəta:', error);
+                    alert('İstifadəçi silinərkən xəta baş verdi');
+                }
+            }
+        }
+        
+        // Search və pagination funksiyalarını qoş
+        function setupAdminSearchAndPagination() {
+            // İstifadəçi axtarışı
+            const userSearchInput = document.getElementById('userSearch');
+            const userRoleFilter = document.getElementById('userRoleFilter');
+            const userSearchBtn = document.getElementById('userSearchBtn');
+            const userResetBtn = document.getElementById('userResetBtn');
+            
+            if (userSearchBtn) {
+                userSearchBtn.addEventListener('click', async () => {
+                    const search = userSearchInput.value;
+                    const role = userRoleFilter.value;
+                    await loadUsersWithFilters(search, role, 1);
+                });
+            }
+            
+            if (userResetBtn) {
+                userResetBtn.addEventListener('click', async () => {
+                    userSearchInput.value = '';
+                    userRoleFilter.value = '';
+                    await loadUsersWithFilters('', '', 1);
+                });
+            }
+            
+            // Layihə axtarışı
+            const projectSearchInput = document.getElementById('projectSearch');
+            const projectStatusFilter = document.getElementById('projectStatusFilter');
+            const projectSearchBtn = document.getElementById('projectSearchBtn');
+            const projectResetBtn = document.getElementById('projectResetBtn');
+            
+            if (projectSearchBtn) {
+                projectSearchBtn.addEventListener('click', async () => {
+                    const search = projectSearchInput.value;
+                    const status = projectStatusFilter.value;
+                    await loadProjectsWithFilters(search, status, 1);
+                });
+            }
+            
+            if (projectResetBtn) {
+                projectResetBtn.addEventListener('click', async () => {
+                    projectSearchInput.value = '';
+                    projectStatusFilter.value = '';
+                    await loadProjectsWithFilters('', '', 1);
+                });
+            }
+        }
+        
+        // Filtrlərlə istifadəçiləri yüklə
+        async function loadUsersWithFilters(search = '', role = '', page = 1) {
+            try {
+                const usersData = await fetch(`http://localhost:5000/api/admin/users?page=${page}&limit=10&search=${encodeURIComponent(search)}&role=${encodeURIComponent(role)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                }).then(res => res.json());
+                
+                if (usersData.success) {
+                    const usersList = document.getElementById('admin-users-list');
+                    usersList.innerHTML = '';
+                    usersData.users.forEach(user => {
+                        usersList.innerHTML += `
+                            <div class="user-item">
+                                <h3>${user.username}</h3>
+                                <p>Email: ${user.email}</p>
+                                <p>Rol: ${user.role}</p>
+                                <p>Qeydiyyat: ${new Date(user.created_at).toLocaleDateString()}</p>
+                                <div class="user-actions">
+                                    <button class="btn btn-secondary edit-btn" onclick="editUser('${user.id}')">Redaktə Et</button>
+                                    <button class="btn btn-secondary delete-btn" onclick="deleteUser('${user.id}')">Sil</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Pagination əlavə et
+                    renderUserPagination(usersData.pagination);
+                }
+            } catch (error) {
+                console.error('İstifadəçilər yüklənmə xətası:', error);
+                alert('İstifadəçilər yüklənmə xətası');
+            }
+        }
+        
+        // Filtrlərlə layihələri yüklə
+        async function loadProjectsWithFilters(search = '', status = '', page = 1) {
+            try {
+                const projectsData = await fetch(`http://localhost:5000/api/admin/projects?page=${page}&limit=10&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                }).then(res => res.json());
+                
+                if (projectsData.success) {
+                    const projectsList = document.getElementById('admin-projects-list');
+                    projectsList.innerHTML = '';
+                    projectsData.projects.forEach(project => {
+                        projectsList.innerHTML += `
+                            <div class="project-item">
+                                <h3>${project.title}</h3>
+                                <p>${project.description}</p>
+                                <p><small>Müəllif: ${project.user_username} (${project.user_email})</small></p>
+                                <div class="project-actions">
+                                    <button class="btn btn-secondary edit-btn" onclick="editProject('${project.id}')">Redaktə Et</button>
+                                    <button class="btn btn-secondary delete-btn" onclick="deleteProject('${project.id}')">Sil</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Pagination əlavə et
+                    renderProjectPagination(projectsData.pagination);
+                }
+            } catch (error) {
+                console.error('Layihələr yüklənmə xətası:', error);
+                alert('Layihələr yüklənmə xətası');
+            }
+        }
+        
+        // İstifadəçi pagination render et
+        function renderUserPagination(pagination) {
+            const paginationDiv = document.getElementById('userPagination');
+            if (!paginationDiv) return;
+            
+            let paginationHtml = '';
+            
+            if (pagination.hasPrevPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadUsersWithFilters('', '', ${pagination.currentPage - 1})">Əvvəlki</button>`;
+            }
+            
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                paginationHtml += `<button class="btn ${i === pagination.currentPage ? 'active' : ''}" onclick="loadUsersWithFilters('', '', ${i})">${i}</button>`;
+            }
+            
+            if (pagination.hasNextPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadUsersWithFilters('', '', ${pagination.currentPage + 1})">Sonrakı</button>`;
+            }
+            
+            paginationDiv.innerHTML = paginationHtml;
+        }
+        
+        // Layihə pagination render et
+        function renderProjectPagination(pagination) {
+            const paginationDiv = document.getElementById('projectPagination');
+            if (!paginationDiv) return;
+            
+            let paginationHtml = '';
+            
+            if (pagination.hasPrevPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadProjectsWithFilters('', '', ${pagination.currentPage - 1})">Əvvəlki</button>`;
+            }
+            
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                paginationHtml += `<button class="btn ${i === pagination.currentPage ? 'active' : ''}" onclick="loadProjectsWithFilters('', '', ${i})">${i}</button>`;
+            }
+            
+            if (pagination.hasNextPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadProjectsWithFilters('', '', ${pagination.currentPage + 1})">Sonrakı</button>`;
+            }
+            
+            paginationDiv.innerHTML = paginationHtml;
         }
         
         // Layihəni redaktə et

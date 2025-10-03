@@ -1,6 +1,25 @@
 // API əlaqə funksiyaları
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// Toast funksiyaları
+const showToast = (message, type = 'success') => {
+    // Əgər toastify yüklənməyibsə, sadəcə alert göstər
+    if (typeof Toastify === 'undefined') {
+        alert(message);
+        return;
+    }
+    
+    Toastify({
+        text: message,
+        duration: 3000,
+        close: true,
+        gravity: "top", // yuxarı mövqe
+        position: "right", // sağ mövqe
+        backgroundColor: type === 'success' ? "#4CAF50" : "#f44336", // uğurlu/xəta rəngi
+        stopOnFocus: true, // kursor toxunanda dayansın
+    }).showToast();
+};
+
 // Ümumi headers
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -164,6 +183,29 @@ const userAPI = {
             console.error('Şifrə dəyişmə xətası:', error);
             return { success: false, message: 'Serverə əlaqə xətası' };
         }
+    },
+
+    // Profil şəklini yüklə
+    uploadAvatar: async (file) => {
+        try {
+            const formData = new FormData();
+            formData.append('avatar', file);
+            
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/user/avatar`, {
+                method: 'PUT',
+                headers: {
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Profil şəkli yükləmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
     }
 };
 
@@ -204,22 +246,75 @@ const adminAPI = {
 
 // Frontend funksiyaları
 const frontend = {
+    // Email formatını yoxla
+    isValidEmail: (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    },
+
     // Login form təqdimatı
     initLogin: () => {
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
+            // Real-time validation
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            
+            usernameInput.addEventListener('input', () => {
+                if (usernameInput.value.trim() === '') {
+                    usernameInput.setCustomValidity('İstifadəçi adı boş ola bilməz');
+                } else {
+                    usernameInput.setCustomValidity('');
+                }
+            });
+            
+            passwordInput.addEventListener('input', () => {
+                if (passwordInput.value.length < 6) {
+                    passwordInput.setCustomValidity('Şifrə ən azı 6 simvol uzunluğunda olmalıdır');
+                } else {
+                    passwordInput.setCustomValidity('');
+                }
+            });
+            
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
+                // Form validation
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value;
                 
-                const result = await authAPI.login(username, password);
-                if (result.success) {
-                    alert('Giriş uğurludur!');
-                    window.location.href = 'profile.html';
-                } else {
-                    alert(result.message);
+                if (username === '') {
+                    showToast('İstifadəçi adı boş ola bilməz!', 'error');
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    showToast('Şifrə ən azı 6 simvol uzunluğunda olmalıdır!', 'error');
+                    return;
+                }
+                
+                // Loading indicator əlavə et
+                const loginButton = document.querySelector('#loginForm button[type="submit"]');
+                const originalText = loginButton.textContent;
+                loginButton.innerHTML = '<span class="spinner"></span> Giriş edilir...';
+                loginButton.disabled = true;
+                
+                try {
+                    const result = await authAPI.login(username, password);
+                    if (result.success) {
+                        showToast('Giriş uğurludur!', 'success');
+                        setTimeout(() => {
+                            window.location.href = 'profile.html';
+                        }, 1500);
+                    } else {
+                        showToast(result.message, 'error');
+                    }
+                } catch (error) {
+                    showToast('Serverə əlaqə xətası: ' + error.message, 'error');
+                } finally {
+                    // Loading indicator-u sil
+                    loginButton.innerHTML = originalText;
+                    loginButton.disabled = false;
                 }
             });
         }
@@ -229,19 +324,109 @@ const frontend = {
     initRegister: () => {
         const registerForm = document.getElementById('registerForm');
         if (registerForm) {
+            // Real-time validation
+            const usernameInput = document.getElementById('regUsername');
+            const emailInput = document.getElementById('regEmail');
+            const passwordInput = document.getElementById('regPassword');
+            const confirmPasswordInput = document.getElementById('regConfirmPassword');
+            
+            usernameInput.addEventListener('input', () => {
+                if (usernameInput.value.trim() === '') {
+                    usernameInput.setCustomValidity('İstifadəçi adı boş ola bilməz');
+                } else if (usernameInput.value.length < 3) {
+                    usernameInput.setCustomValidity('İstifadəçi adı ən azı 3 simvol uzunluğunda olmalıdır');
+                } else {
+                    usernameInput.setCustomValidity('');
+                }
+            });
+            
+            emailInput.addEventListener('input', () => {
+                if (emailInput.value.trim() === '') {
+                    emailInput.setCustomValidity('Email boş ola bilməz');
+                } else if (!frontend.isValidEmail(emailInput.value)) {
+                    emailInput.setCustomValidity('Düzgün email formatı daxil edin');
+                } else {
+                    emailInput.setCustomValidity('');
+                }
+            });
+            
+            passwordInput.addEventListener('input', () => {
+                if (passwordInput.value.length < 6) {
+                    passwordInput.setCustomValidity('Şifrə ən azı 6 simvol uzunluğunda olmalıdır');
+                } else {
+                    passwordInput.setCustomValidity('');
+                }
+            });
+            
+            confirmPasswordInput.addEventListener('input', () => {
+                if (confirmPasswordInput.value !== passwordInput.value) {
+                    confirmPasswordInput.setCustomValidity('Şifrələr uyğun gəlmir');
+                } else {
+                    confirmPasswordInput.setCustomValidity('');
+                }
+            });
+            
             registerForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
-                const username = document.getElementById('regUsername').value;
-                const email = document.getElementById('regEmail').value;
-                const password = document.getElementById('regPassword').value;
+                // Form validation
+                const username = usernameInput.value.trim();
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+                const confirmPassword = confirmPasswordInput.value;
                 
-                const result = await authAPI.register(username, email, password);
-                if (result.success) {
-                    alert('Qeydiyyat uğurla tamamlandı!');
-                    window.location.href = 'login.html';
-                } else {
-                    alert(result.message);
+                if (username === '') {
+                    showToast('İstifadəçi adı boş ola bilməz!', 'error');
+                    return;
+                }
+                
+                if (username.length < 3) {
+                    showToast('İstifadəçi adı ən azı 3 simvol uzunluğunda olmalıdır!', 'error');
+                    return;
+                }
+                
+                if (email === '') {
+                    showToast('Email boş ola bilməz!', 'error');
+                    return;
+                }
+                
+                if (!frontend.isValidEmail(email)) {
+                    showToast('Düzgün email formatı daxil edin!', 'error');
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    showToast('Şifrə ən azı 6 simvol uzunluğunda olmalıdır!', 'error');
+                    return;
+                }
+                
+                if (password !== confirmPassword) {
+                    showToast('Şifrələr uyğun gəlmir!', 'error');
+                    return;
+                }
+                
+                // Loading indicator əlavə et
+                const registerButton = document.querySelector('#registerForm button[type="submit"]');
+                const originalText = registerButton.textContent;
+                registerButton.innerHTML = '<span class="spinner"></span> Qeydiyyatdan keçir...';
+                registerButton.disabled = true;
+                
+                try {
+                    const result = await authAPI.register(username, email, password);
+                    if (result.success) {
+                        showToast('Qeydiyyat uğurla tamamlandı!', 'success');
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 1500);
+                    } else {
+                        showToast(result.message, 'error');
+                    }
+                } catch (error) {
+                    showToast('Serverə əlaqə xətası: ' + error.message, 'error');
+                } finally {
+                    // Loading indicator-u sil
+                    registerButton.innerHTML = originalText;
+                    registerButton.disabled = false;
                 }
             });
         }
@@ -349,3 +534,16 @@ document.addEventListener('DOMContentLoaded', frontend.init);
 
 // Hər səhifə dəyişikliyində naviqasiyanı yenilə
 window.addEventListener('load', frontend.updateNavigation);
+
+// Toastify JS əlavə et
+const addToastifyJS = () => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/toastify-js';
+    script.onload = () => {
+        console.log('Toastify loaded successfully');
+    };
+    document.head.appendChild(script);
+};
+
+// Toastify-i yüklə
+addToastifyJS();

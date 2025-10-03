@@ -70,6 +70,14 @@
                     </div>
                     
                     <div class="form-group">
+                        <label for="regConfirmPassword">Şifrəni Təsdiqlə</label>
+                        <div class="password-input-container">
+                            <input type="password" id="regConfirmPassword" name="confirmPassword" required>
+                            <span class="password-toggle-icon" id="toggleRegConfirmPassword">👁️</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
                         <input type="checkbox" id="terms" name="terms" required>
                         <label for="terms">İstifadəçi razılaşmasını oxudum və qəbul edirəm</label>
                     </div>
@@ -139,6 +147,7 @@
             }
         });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="js/api.js"></script>
 </body>
 </html>

@@ -5,10 +5,40 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
+const multer = require('multer');
+const fs = require('fs');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 dotenv.config();
 
 const app = express();
+
+// Helmet ilə security header-ləri əlavə et
+app.use(helmet());
+
+// Rate limiting konfiqurasiyası
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 dəqiqə
+    max: 5, // Hər IP-dən 15 dəqiqə ərzində maksimum 5 dəfə
+    message: {
+        success: false,
+        message: 'Çox sayda giriş cəhdi. 15 dəqiqə sonra yenidən cəhd edin.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 dəqiqə
+    max: 3, // Hər IP-dən 15 dəqiqə ərzində maksimum 3 dəfə
+    message: {
+        success: false,
+        message: 'Çox sayda qeydiyyat cəhdi. 15 dəqiqə sonra yenidən cəhd edin.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // CORS tənzimləmələri
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'];
@@ -25,6 +55,42 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Statik fayllar üçün middleware (front-end)
 app.use(express.static(path.join(__dirname, '.')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Şəkilləri saxlamaq üçün uploads qovluğu yarat
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer konfiqurasiyası
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+        // Fayl adını timestamp ilə əvəz et
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    // Yalnız şəkil fayllarına icazə ver
+    if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+    } else {
+        cb(new Error('Yalnız şəkil faylları yükləməyə icazə verilir!'), false);
+    }
+};
+
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: fileFilter
+});
 
 // PostgreSQL Pool yarat
 const pool = new Pool({
@@ -160,7 +226,7 @@ const admin = async (req, res, next) => {
 };
 
 // Autentifikasiya route-ları
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', registerLimiter, async (req, res) => {
     try {
         const { username, email, password } = req.body;
 
@@ -206,7 +272,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
 
@@ -400,6 +466,37 @@ app.put('/api/user/changepassword', auth, async (req, res) => {
     }
 });
 
+// Profil şəkli yüklə
+app.put('/api/user/avatar', auth, upload.single('avatar'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'Şəkil seçilməyib'
+            });
+        }
+
+        // Şəkil yolunu verilənlər bazasında yenilə
+        const avatarPath = `/uploads/${req.file.filename}`;
+        await pool.query(
+            'UPDATE users SET profile_avatar = $1 WHERE id = $2',
+            [avatarPath, req.user.id]
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Profil şəkli uğurla yeniləndi',
+            avatarPath: avatarPath
+        });
+    } catch (error) {
+        console.error('Profil şəkli yükləmə xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
 // Frontend üçün layihələri əldə et (giriş tələb olunmur)
 app.get('/api/projects', async (req, res) => {
     try {
@@ -464,14 +561,119 @@ app.get('/api/homepage', async (req, res) => {
     }
 });
 
-// Bütün istifadəçiləri əldə et (yalnız admin)
+// Contact form endpoint
+app.post('/api/contact', async (req, res) => {
+    try {
+        const { name, email, subject, message } = req.body;
+        
+        // Nodemailer konfiqurasiyası
+        const nodemailer = require('nodemailer');
+        
+        const transporter = nodemailer.createTransporter({
+            host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+            port: process.env.SMTP_PORT || 587,
+            secure: false, // true for 465, false for other ports
+            auth: {
+                user: process.env.SMTP_EMAIL,
+                pass: process.env.SMTP_PASSWORD
+            }
+        });
+
+        // Email göndərmə
+        const mailOptions = {
+            from: process.env.SMTP_EMAIL,
+            to: process.env.CONTACT_EMAIL || process.env.SMTP_EMAIL,
+            subject: `Contact Form: ${subject}`,
+            text: `
+Name: ${name}
+Email: ${email}
+Subject: ${subject}
+Message: ${message}
+            `,
+            html: `
+<h2>Contact Form Message</h2>
+<p><strong>Name:</strong> ${name}</p>
+<p><strong>Email:</strong> ${email}</p>
+<p><strong>Subject:</strong> ${subject}</p>
+<p><strong>Message:</strong></p>
+<p>${message.replace(/\n/g, '<br>')}</p>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({
+            success: true,
+            message: 'Mesajınız uğurla göndərildi!'
+        });
+    } catch (error) {
+        console.error('Contact form xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Mesaj göndərilərkən xəta baş verdi'
+        });
+    }
+});
+
+// Bütün istifadəçiləri əldə et (yalnız admin) - pagination və filtering ilə
 app.get('/api/admin/users', auth, admin, async (req, res) => {
     try {
-        const result = await pool.query('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const role = req.query.role || '';
+        
+        // Offset hesabla
+        const offset = (page - 1) * limit;
+        
+        // SQL sorğusu üçün WHERE şərtləri
+        let whereClause = '';
+        const queryParams = [];
+        let paramIndex = 1;
+        
+        if (search) {
+            whereClause += ` AND (username ILIKE ${paramIndex} OR email ILIKE ${paramIndex})`;
+            queryParams.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        if (role) {
+            whereClause += ` AND role = ${paramIndex}`;
+            queryParams.push(role);
+            paramIndex++;
+        }
+        
+        // İstifadəçiləri əldə et
+        const result = await pool.query(
+            `SELECT id, username, email, role, created_at 
+             FROM users 
+             WHERE 1=1 ${whereClause}
+             ORDER BY created_at DESC
+             LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
+            [...queryParams, limit, offset]
+        );
+        
+        // Ümumi sayı əldə et
+        const countResult = await pool.query(
+            `SELECT COUNT(*) as total 
+             FROM users 
+             WHERE 1=1 ${whereClause}`,
+            queryParams
+        );
+        
+        const total = parseInt(countResult.rows[0].total);
+        const totalPages = Math.ceil(total / limit);
         
         res.status(200).json({
             success: true,
-            users: result.rows
+            users: result.rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalUsers: total,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            }
         });
     } catch (error) {
         console.error('İstifadəçilər xətası:', error);
@@ -482,20 +684,68 @@ app.get('/api/admin/users', auth, admin, async (req, res) => {
     }
 });
 
-// Bütün layihələri əldə et (yalnız admin)
+// Bütün layihələri əldə et (yalnız admin) - pagination və filtering ilə
 app.get('/api/admin/projects', auth, admin, async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const status = req.query.status || '';
+        
+        // Offset hesabla
+        const offset = (page - 1) * limit;
+        
+        // SQL sorğusu üçün WHERE şərtləri
+        let whereClause = '';
+        const queryParams = [];
+        let paramIndex = 1;
+        
+        if (search) {
+            whereClause += ` AND (p.title ILIKE ${paramIndex} OR p.description ILIKE ${paramIndex})`;
+            queryParams.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        if (status) {
+            whereClause += ` AND p.status = ${paramIndex}`;
+            queryParams.push(status);
+            paramIndex++;
+        }
+        
+        // Layihələri əldə et
         const result = await pool.query(`
             SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
                    p.image_url, p.project_url, u.username as user_username, u.email as user_email
             FROM projects p
             JOIN users u ON p.user_id = u.id
+            WHERE 1=1 ${whereClause}
             ORDER BY p.created_at DESC
-        `);
+            LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
+            [...queryParams, limit, offset]
+        );
 
+        // Ümumi sayı əldə et
+        const countResult = await pool.query(
+            `SELECT COUNT(*) as total 
+             FROM projects p
+             JOIN users u ON p.user_id = u.id
+             WHERE 1=1 ${whereClause}`,
+            queryParams
+        );
+        
+        const total = parseInt(countResult.rows[0].total);
+        const totalPages = Math.ceil(total / limit);
+        
         res.status(200).json({
             success: true,
-            projects: result.rows
+            projects: result.rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalProjects: total,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            }
         });
     } catch (error) {
         console.error('Admin layihələri xətası:', error);

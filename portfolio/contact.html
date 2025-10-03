@@ -93,7 +93,55 @@
         </section>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="js/script.js"></script>
     <script src="js/api.js"></script>
+    <script>
+        // Contact form təqdimatı
+        document.addEventListener('DOMContentLoaded', function() {
+            const contactForm = document.getElementById('contactForm');
+            if (contactForm) {
+                contactForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    // Loading indicator əlavə et
+                    const submitButton = document.querySelector('#contactForm button[type="submit"]');
+                    const originalText = submitButton.textContent;
+                    submitButton.innerHTML = '<span class="spinner"></span> Göndərilir...';
+                    submitButton.disabled = true;
+                    
+                    const name = document.getElementById('name').value;
+                    const email = document.getElementById('email').value;
+                    const subject = document.getElementById('subject').value;
+                    const message = document.getElementById('message').value;
+                    
+                    try {
+                        const response = await fetch('http://localhost:5000/api/contact', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ name, email, subject, message })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            showToast('Mesajınız uğurla göndərildi!', 'success');
+                            contactForm.reset();
+                        } else {
+                            showToast('Mesaj göndərilərkən xəta baş verdi: ' + data.message, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Xəta:', error);
+                        showToast('Serverə əlaqə xətası: ' + error.message, 'error');
+                    } finally {
+                        // Loading indicator-u sil
+                        submitButton.innerHTML = originalText;
+                        submitButton.disabled = false;
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
