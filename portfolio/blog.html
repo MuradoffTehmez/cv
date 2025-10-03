@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloq - Təhməz Muradov</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html">Təhməz Muradov</a>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <a href="index.html" class="nav-link">Ana Səhifə</a>
+                <a href="about.html" class="nav-link">Haqqında</a>
+                <a href="projects.html" class="nav-link">Layihələr</a>
+                <a href="blog.html" class="nav-link active">Bloq</a>
+                <a href="contact.html" class="nav-link">Əlaqə</a>
+                <a href="login.html" class="nav-link">Giriş</a>
+                <a href="profile.html" class="nav-link">Profil</a>
+            </div>
+            <div class="nav-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="blog">
+            <div class="blog-content">
+                <h1>Bloq Məqalələrim</h1>
+                <p>Kiber təhlükəsizlik və proqramlaşdırma sahəsində təcrübələrimi paylaşdığım məqalələr.</p>
+                
+                <div class="search-container">
+                    <input type="text" id="blog-search" placeholder="Məqalə axtar...">
+                    <button id="search-btn" class="btn btn-primary">Axtar</button>
+                </div>
+                
+                <div class="blog-posts-container" id="blog-posts-container">
+                    <div class="loading">Məqalələr yüklənir...</div>
+                </div>
+                
+                <div class="pagination" id="blog-pagination">
+                    <!-- Pagination burada yüklənəcək -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBlogPosts();
+            
+            // Axtarış funksiyası
+            document.getElementById('search-btn').addEventListener('click', function() {
+                loadBlogPosts();
+            });
+            
+            document.getElementById('blog-search').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    loadBlogPosts();
+                }
+            });
+        });
+        
+        async function loadBlogPosts(page = 1) {
+            try {
+                const search = document.getElementById('blog-search').value.trim();
+                
+                let url = `http://localhost:5001/api/posts?page=${page}&limit=6`;
+                if (search) {
+                    url += `&search=${encodeURIComponent(search)}`;
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const postsContainer = document.getElementById('blog-posts-container');
+                    postsContainer.innerHTML = '';
+                    
+                    if (data.posts.length === 0) {
+                        postsContainer.innerHTML = '<p class="no-posts">Heç bir məqalə tapılmadı.</p>';
+                        document.getElementById('blog-pagination').innerHTML = '';
+                        return;
+                    }
+                    
+                    data.posts.forEach(post => {
+                        postsContainer.innerHTML += `
+                            <div class="blog-post-card">
+                                <div class="blog-post-image">
+                                    ${post.featured_image ? 
+                                        `<img src="${post.featured_image}" alt="${post.title}" onerror="this.src='images/blog-placeholder.jpg';">` : 
+                                        '<div class="placeholder-image">Təsvir yoxdur</div>'
+                                    }
+                                </div>
+                                <div class="blog-post-content">
+                                    <h2>${post.title}</h2>
+                                    <p class="post-excerpt">${post.excerpt || post.content.substring(0, 150) + '...'}</p>
+                                    <div class="post-meta">
+                                        <span class="author">Müəllif: ${post.author_username}</span>
+                                        <span class="date">${new Date(post.created_at).toLocaleDateString('az-AZ')}</span>
+                                    </div>
+                                    <a href="post-detail.html?slug=${post.slug}" class="read-more">Ətraflı oxu</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Pagination əlavə et
+                    renderPagination(data.pagination);
+                } else {
+                    document.getElementById('blog-posts-container').innerHTML = '<p class="error">Məqalələr alınmadı</p>';
+                }
+            } catch (error) {
+                console.error('Xəta:', error);
+                document.getElementById('blog-posts-container').innerHTML = '<p class="error">Məqalələr alınarkən xəta baş verdi</p>';
+            }
+        }
+        
+        function renderPagination(pagination) {
+            const paginationDiv = document.getElementById('blog-pagination');
+            if (!paginationDiv) return;
+            
+            let paginationHtml = '';
+            
+            if (pagination.hasPrevPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadBlogPosts(${pagination.currentPage - 1})">Əvvəlki</button>`;
+            }
+            
+            // Səhifələri göstər (maksimum 5 səhifə)
+            const startPage = Math.max(1, pagination.currentPage - 2);
+            const endPage = Math.min(pagination.totalPages, pagination.currentPage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHtml += `<button class="btn ${i === pagination.currentPage ? 'active' : ''}" onclick="loadBlogPosts(${i})">${i}</button>`;
+            }
+            
+            if (pagination.hasNextPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadBlogPosts(${pagination.currentPage + 1})">Sonrakı</button>`;
+            }
+            
+            paginationDiv.innerHTML = paginationHtml;
+        }
+    </script>
+</body>
+</html>

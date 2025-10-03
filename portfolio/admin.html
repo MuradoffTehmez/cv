@@ -47,6 +47,9 @@
                     <div class="admin-tabs">
                         <button class="tab-btn active" data-tab="dashboard">İdarə paneli</button>
                         <button class="tab-btn" data-tab="projects">Layihələr</button>
+                        <button class="tab-btn" data-tab="posts">Məqalələr</button>
+                        <button class="tab-btn" data-tab="comments">Rəylər</button>
+                        <button class="tab-btn" data-tab="messages">Mesajlar</button>
                         <button class="tab-btn" data-tab="users">İstifadəçilər</button>
                         <button class="tab-btn" data-tab="settings">Tənzimləmələr</button>
                     </div>
@@ -62,6 +65,18 @@
                                 <div class="stat-card">
                                     <h3>İstifadəçilər</h3>
                                     <p class="stat-number" id="total-users">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Məqalələr</h3>
+                                    <p class="stat-number" id="total-posts">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Rəylər</h3>
+                                    <p class="stat-number" id="total-comments">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Oxunmamış Mesajlar</h3>
+                                    <p class="stat-number" id="unread-messages">0</p>
                                 </div>
                             </div>
                         </div>
@@ -88,6 +103,80 @@
                                 <!-- Layihələr burada yüklənəcək -->
                             </div>
                             <div class="pagination" id="projectPagination">
+                                <!-- Pagination burada yüklənəcək -->
+                            </div>
+                        </div>
+                        
+                        <div id="posts" class="tab-pane">
+                            <h2>Məqalələr İdarəetməsi</h2>
+                            <button class="btn btn-primary" id="addPostBtn">Yeni Məqalə Əlavə Et</button>
+                            
+                            <div class="admin-controls">
+                                <div class="search-container">
+                                    <input type="text" id="postSearch" placeholder="Məqalə axtar...">
+                                    <select id="postStatusFilter">
+                                        <option value="">Bütün Statuslar</option>
+                                        <option value="draft">Qaralama</option>
+                                        <option value="published">Dərc Edilmiş</option>
+                                    </select>
+                                    <button id="postSearchBtn" class="btn btn-primary">Axtar</button>
+                                    <button id="postResetBtn" class="btn btn-secondary">Sıfırla</button>
+                                </div>
+                            </div>
+                            
+                            <div class="posts-list" id="admin-posts-list">
+                                <!-- Məqalələr burada yüklənəcək -->
+                            </div>
+                            <div class="pagination" id="postPagination">
+                                <!-- Pagination burada yüklənəcək -->
+                            </div>
+                        </div>
+                        
+                        <div id="comments" class="tab-pane">
+                            <h2>Rəylər İdarəetməsi</h2>
+                            
+                            <div class="admin-controls">
+                                <div class="search-container">
+                                    <input type="text" id="commentSearch" placeholder="Rəy axtar...">
+                                    <select id="commentStatusFilter">
+                                        <option value="">Bütün Statuslar</option>
+                                        <option value="pending">Gözləmədə</option>
+                                        <option value="approved">Təsdiqlənmiş</option>
+                                        <option value="rejected">Rədd edilmiş</option>
+                                    </select>
+                                    <button id="commentSearchBtn" class="btn btn-primary">Axtar</button>
+                                    <button id="commentResetBtn" class="btn btn-secondary">Sıfırla</button>
+                                </div>
+                            </div>
+                            
+                            <div class="comments-list" id="admin-comments-list">
+                                <!-- Rəylər burada yüklənəcək -->
+                            </div>
+                            <div class="pagination" id="commentPagination">
+                                <!-- Pagination burada yüklənəcək -->
+                            </div>
+                        </div>
+                        
+                        <div id="messages" class="tab-pane">
+                            <h2>Əlaqə Mesajları</h2>
+                            
+                            <div class="admin-controls">
+                                <div class="search-container">
+                                    <input type="text" id="messageSearch" placeholder="Mesaj axtar...">
+                                    <select id="messageReadFilter">
+                                        <option value="">Bütün Mesajlar</option>
+                                        <option value="true">Oxunmuş</option>
+                                        <option value="false">Oxunmamış</option>
+                                    </select>
+                                    <button id="messageSearchBtn" class="btn btn-primary">Axtar</button>
+                                    <button id="messageResetBtn" class="btn btn-secondary">Sıfırla</button>
+                                </div>
+                            </div>
+                            
+                            <div class="messages-list" id="admin-messages-list">
+                                <!-- Mesajlar burada yüklənəcək -->
+                            </div>
+                            <div class="pagination" id="messagePagination">
                                 <!-- Pagination burada yüklənəcək -->
                             </div>
                         </div>
@@ -198,12 +287,28 @@
         // Admin məlumatlarını yüklə
         async function loadAdminData() {
             try {
+                // Statistik məlumatları yüklə
+                const statsResponse = await fetch('http://localhost:5001/api/admin/stats', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                const statsData = await statsResponse.json();
+                
+                if (statsData.success) {
+                    document.getElementById('total-projects').textContent = statsData.stats.total_projects;
+                    document.getElementById('total-users').textContent = statsData.stats.total_users;
+                    document.getElementById('total-posts').textContent = statsData.stats.total_posts;
+                    document.getElementById('total-comments').textContent = statsData.stats.total_comments;
+                    document.getElementById('unread-messages').textContent = statsData.stats.unread_messages;
+                }
+                
                 // Layihələri yüklə
                 const projectsData = await adminAPI.getAllProjects();
                 if (projectsData.success) {
-                    document.getElementById('total-projects').textContent = projectsData.projects.length;
-                    
-                    // Layihələri göstər
+                    // Yuxarıda statistika artıq yüklənib, layihələri sadəcə göstər
                     const projectsList = document.getElementById('admin-projects-list');
                     projectsList.innerHTML = '';
                     projectsData.projects.forEach(project => {
@@ -224,9 +329,7 @@
                 // İstifadəçiləri yüklə
                 const usersData = await adminAPI.getAllUsers();
                 if (usersData.success) {
-                    document.getElementById('total-users').textContent = usersData.users.length;
-                    
-                    // İstifadəçiləri göstər
+                    // Yuxarıda statistika artıq yüklənib, istifadəçiləri sadəcə göstər
                     const usersList = document.getElementById('admin-users-list');
                     usersList.innerHTML = '';
                     usersData.users.forEach(user => {
@@ -511,6 +614,477 @@
                 document.getElementById(tabId).classList.add('active');
             });
         });
+        
+        // Məqalələr funksiyaları
+        async function loadPostsWithFilters(search = '', status = '', page = 1) {
+            try {
+                let url = `http://localhost:5001/api/posts?page=${page}&limit=10`;
+                if (search) {
+                    url += `&search=${encodeURIComponent(search)}`;
+                }
+                if (status) {
+                    url += `&status=${encodeURIComponent(status)}`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const postsList = document.getElementById('admin-posts-list');
+                    postsList.innerHTML = '';
+                    
+                    data.posts.forEach(post => {
+                        postsList.innerHTML += `
+                            <div class="post-item">
+                                <h3>${post.title}</h3>
+                                <p>${post.excerpt || post.content.substring(0, 100) + '...'}</p>
+                                <p><small>Müəllif: ${post.author_username}, Status: ${post.status}</small></p>
+                                <div class="post-actions">
+                                    <button class="btn btn-secondary edit-btn" onclick="editPost('${post.id}')">Redaktə Et</button>
+                                    <button class="btn btn-secondary delete-btn" onclick="deletePost('${post.id}')">Sil</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Pagination əlavə et
+                    renderPostPagination(data.pagination);
+                }
+            } catch (error) {
+                console.error('Məqalələr yüklənmə xətası:', error);
+                alert('Məqalələr yüklənmə xətası');
+            }
+        }
+        
+        // Məqalə pagination render et
+        function renderPostPagination(pagination) {
+            const paginationDiv = document.getElementById('postPagination');
+            if (!paginationDiv) return;
+            
+            let paginationHtml = '';
+            
+            if (pagination.hasPrevPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadPostsWithFilters('', '', ${pagination.currentPage - 1})">Əvvəlki</button>`;
+            }
+            
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                paginationHtml += `<button class="btn ${i === pagination.currentPage ? 'active' : ''}" onclick="loadPostsWithFilters('', '', ${i})">${i}</button>`;
+            }
+            
+            if (pagination.hasNextPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadPostsWithFilters('', '', ${pagination.currentPage + 1})">Sonrakı</button>`;
+            }
+            
+            paginationDiv.innerHTML = paginationHtml;
+        }
+        
+        // Rəylər funksiyaları
+        async function loadCommentsWithFilters(search = '', status = '', page = 1) {
+            try {
+                let url = `http://localhost:5001/api/admin/comments?page=${page}&limit=10`;
+                if (search) {
+                    url += `&search=${encodeURIComponent(search)}`;
+                }
+                if (status) {
+                    url += `&status=${encodeURIComponent(status)}`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const commentsList = document.getElementById('admin-comments-list');
+                    commentsList.innerHTML = '';
+                    
+                    data.comments.forEach(comment => {
+                        commentsList.innerHTML += `
+                            <div class="comment-item">
+                                <h4>Məqalə: ${comment.post_title}</h4>
+                                <p>${comment.content}</p>
+                                <p><small>Müəllif: ${comment.user_username}, Status: ${comment.status}, Tarix: ${new Date(comment.created_at).toLocaleDateString()}</small></p>
+                                <div class="comment-actions">
+                                    <select onchange="changeCommentStatus('${comment.id}', this.value)" class="status-select">
+                                        <option value="pending" ${comment.status === 'pending' ? 'selected' : ''}>Gözləmədə</option>
+                                        <option value="approved" ${comment.status === 'approved' ? 'selected' : ''}>Təsdiqlənmiş</option>
+                                        <option value="rejected" ${comment.status === 'rejected' ? 'selected' : ''}>Rədd edilmiş</option>
+                                    </select>
+                                    <button class="btn btn-secondary delete-btn" onclick="deleteComment('${comment.id}')">Sil</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Pagination əlavə et
+                    renderCommentPagination(data.pagination);
+                }
+            } catch (error) {
+                console.error('Rəylər yüklənmə xətası:', error);
+                alert('Rəylər yüklənmə xətası');
+            }
+        }
+        
+        // Rəy statusunu dəyiş
+        async function changeCommentStatus(commentId, newStatus) {
+            try {
+                const response = await fetch(`http://localhost:5001/api/admin/comments/${commentId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Rəy statusu uğurla dəyişdirildi!', 'success');
+                    // Səhifəni yeniləmək əvəzinə, sadəcə statusu yeniləyə bilərik
+                    loadCommentsWithFilters();
+                } else {
+                    showToast(data.message || 'Status dəyişdirilərkən xəta baş verdi', 'error');
+                }
+            } catch (error) {
+                console.error('Status dəyişmə xətası:', error);
+                showToast('Serverə əlaqə xətası', 'error');
+            }
+        }
+        
+        // Rəy sil
+        async function deleteComment(commentId) {
+            if (confirm('Bu rəyi silmək istədiyinizə əminsiniz?')) {
+                try {
+                    const response = await fetch(`http://localhost:5001/api/admin/comments/${commentId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showToast('Rəy uğurla silindi!', 'success');
+                        loadCommentsWithFilters();
+                    } else {
+                        showToast(data.message || 'Rəy silinərkən xəta baş verdi', 'error');
+                    }
+                } catch (error) {
+                    console.error('Rəy silmə xətası:', error);
+                    showToast('Serverə əlaqə xətası', 'error');
+                }
+            }
+        }
+        
+        // Rəy pagination render et
+        function renderCommentPagination(pagination) {
+            const paginationDiv = document.getElementById('commentPagination');
+            if (!paginationDiv) return;
+            
+            let paginationHtml = '';
+            
+            if (pagination.hasPrevPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadCommentsWithFilters('', '', ${pagination.currentPage - 1})">Əvvəlki</button>`;
+            }
+            
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                paginationHtml += `<button class="btn ${i === pagination.currentPage ? 'active' : ''}" onclick="loadCommentsWithFilters('', '', ${i})">${i}</button>`;
+            }
+            
+            if (pagination.hasNextPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadCommentsWithFilters('', '', ${pagination.currentPage + 1})">Sonrakı</button>`;
+            }
+            
+            paginationDiv.innerHTML = paginationHtml;
+        }
+        
+        // Mesajlar funksiyaları
+        async function loadMessagesWithFilters(search = '', isRead = '', page = 1) {
+            try {
+                let url = `http://localhost:5001/api/admin/messages?page=${page}&limit=10`;
+                if (search) {
+                    url += `&search=${encodeURIComponent(search)}`;
+                }
+                if (isRead !== '') {
+                    url += `&is_read=${encodeURIComponent(isRead)}`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const messagesList = document.getElementById('admin-messages-list');
+                    messagesList.innerHTML = '';
+                    
+                    data.messages.forEach(message => {
+                        messagesList.innerHTML += `
+                            <div class="message-item ${!message.is_read ? 'unread' : ''}">
+                                <h4>${message.subject}</h4>
+                                <p>${message.message.substring(0, 100)}${message.message.length > 100 ? '...' : ''}</p>
+                                <p><small>Ad: ${message.name}, Email: ${message.email}, Tarix: ${new Date(message.created_at).toLocaleDateString()}</small></p>
+                                <div class="message-actions">
+                                    <button class="btn btn-secondary" onclick="toggleMessageRead('${message.id}', ${!message.is_read})">
+                                        ${message.is_read ? 'Oxunmamış et' : 'Oxunmuş et'}
+                                    </button>
+                                    <button class="btn btn-secondary delete-btn" onclick="deleteMessage('${message.id}')">Sil</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Pagination əlavə et
+                    renderMessagePagination(data.pagination);
+                }
+            } catch (error) {
+                console.error('Mesajlar yüklənmə xətası:', error);
+                alert('Mesajlar yüklənmə xətası');
+            }
+        }
+        
+        // Mesaj oxunub/oxunmayıb statusunu dəyiş
+        async function toggleMessageRead(messageId, newStatus) {
+            try {
+                const response = await fetch(`http://localhost:5001/api/admin/messages/${messageId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ is_read: newStatus })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Mesaj statusu uğurla dəyişdirildi!', 'success');
+                    loadMessagesWithFilters();
+                } else {
+                    showToast(data.message || 'Status dəyişdirilərkən xəta baş verdi', 'error');
+                }
+            } catch (error) {
+                console.error('Status dəyişmə xətası:', error);
+                showToast('Serverə əlaqə xətası', 'error');
+            }
+        }
+        
+        // Mesaj sil
+        async function deleteMessage(messageId) {
+            if (confirm('Bu mesajı silmək istədiyinizə əminsiniz?')) {
+                try {
+                    const response = await fetch(`http://localhost:5001/api/admin/messages/${messageId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showToast('Mesaj uğurla silindi!', 'success');
+                        loadMessagesWithFilters();
+                    } else {
+                        showToast(data.message || 'Mesaj silinərkən xəta baş verdi', 'error');
+                    }
+                } catch (error) {
+                    console.error('Mesaj silmə xətası:', error);
+                    showToast('Serverə əlaqə xətası', 'error');
+                }
+            }
+        }
+        
+        // Mesaj pagination render et
+        function renderMessagePagination(pagination) {
+            const paginationDiv = document.getElementById('messagePagination');
+            if (!paginationDiv) return;
+            
+            let paginationHtml = '';
+            
+            if (pagination.hasPrevPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadMessagesWithFilters('', '', ${pagination.currentPage - 1})">Əvvəlki</button>`;
+            }
+            
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                paginationHtml += `<button class="btn ${i === pagination.currentPage ? 'active' : ''}" onclick="loadMessagesWithFilters('', '', ${i})">${i}</button>`;
+            }
+            
+            if (pagination.hasNextPage) {
+                paginationHtml += `<button class="btn btn-secondary" onclick="loadMessagesWithFilters('', '', ${pagination.currentPage + 1})">Sonrakı</button>`;
+            }
+            
+            paginationDiv.innerHTML = paginationHtml;
+        }
+        
+        // Məqalə redaktə et
+        function editPost(postId) {
+            alert('Məqalə redaktə funksiyası: ' + postId);
+        }
+        
+        // Məqalə sil
+        async function deletePost(postId) {
+            if (confirm('Bu məqaləni silmək istədiyinizə əminsiniz?')) {
+                try {
+                    const response = await fetch(`http://localhost:5001/api/posts/${postId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showToast('Məqalə uğurla silindi!', 'success');
+                        loadAdminData();
+                    } else {
+                        showToast(data.message || 'Məqalə silinərkən xəta baş verdi', 'error');
+                    }
+                } catch (error) {
+                    console.error('Məqalə silmə xətası:', error);
+                    showToast('Serverə əlaqə xətası', 'error');
+                }
+            }
+        }
+        
+        // Axtarış funksiyalarını qur
+        function setupAdminSearchAndPagination() {
+            // İstifadəçi axtarışı
+            const userSearchInput = document.getElementById('userSearch');
+            const userRoleFilter = document.getElementById('userRoleFilter');
+            const userSearchBtn = document.getElementById('userSearchBtn');
+            const userResetBtn = document.getElementById('userResetBtn');
+            
+            if (userSearchBtn) {
+                userSearchBtn.addEventListener('click', async () => {
+                    const search = userSearchInput.value;
+                    const role = userRoleFilter.value;
+                    await loadUsersWithFilters(search, role, 1);
+                });
+            }
+            
+            if (userResetBtn) {
+                userResetBtn.addEventListener('click', async () => {
+                    userSearchInput.value = '';
+                    userRoleFilter.value = '';
+                    await loadUsersWithFilters('', '', 1);
+                });
+            }
+            
+            // Layihə axtarışı
+            const projectSearchInput = document.getElementById('projectSearch');
+            const projectStatusFilter = document.getElementById('projectStatusFilter');
+            const projectSearchBtn = document.getElementById('projectSearchBtn');
+            const projectResetBtn = document.getElementById('projectResetBtn');
+            
+            if (projectSearchBtn) {
+                projectSearchBtn.addEventListener('click', async () => {
+                    const search = projectSearchInput.value;
+                    const status = projectStatusFilter.value;
+                    await loadProjectsWithFilters(search, status, 1);
+                });
+            }
+            
+            if (projectResetBtn) {
+                projectResetBtn.addEventListener('click', async () => {
+                    projectSearchInput.value = '';
+                    projectStatusFilter.value = '';
+                    await loadProjectsWithFilters('', '', 1);
+                });
+            }
+            
+            // Məqalə axtarışı
+            const postSearchInput = document.getElementById('postSearch');
+            const postStatusFilter = document.getElementById('postStatusFilter');
+            const postSearchBtn = document.getElementById('postSearchBtn');
+            const postResetBtn = document.getElementById('postResetBtn');
+            
+            if (postSearchBtn) {
+                postSearchBtn.addEventListener('click', async () => {
+                    const search = postSearchInput.value;
+                    const status = postStatusFilter.value;
+                    await loadPostsWithFilters(search, status, 1);
+                });
+            }
+            
+            if (postResetBtn) {
+                postResetBtn.addEventListener('click', async () => {
+                    postSearchInput.value = '';
+                    postStatusFilter.value = '';
+                    await loadPostsWithFilters('', '', 1);
+                });
+            }
+            
+            // Rəy axtarışı
+            const commentSearchInput = document.getElementById('commentSearch');
+            const commentStatusFilter = document.getElementById('commentStatusFilter');
+            const commentSearchBtn = document.getElementById('commentSearchBtn');
+            const commentResetBtn = document.getElementById('commentResetBtn');
+            
+            if (commentSearchBtn) {
+                commentSearchBtn.addEventListener('click', async () => {
+                    const search = commentSearchInput.value;
+                    const status = commentStatusFilter.value;
+                    await loadCommentsWithFilters(search, status, 1);
+                });
+            }
+            
+            if (commentResetBtn) {
+                commentResetBtn.addEventListener('click', async () => {
+                    commentSearchInput.value = '';
+                    commentStatusFilter.value = '';
+                    await loadCommentsWithFilters('', '', 1);
+                });
+            }
+            
+            // Mesaj axtarışı
+            const messageSearchInput = document.getElementById('messageSearch');
+            const messageReadFilter = document.getElementById('messageReadFilter');
+            const messageSearchBtn = document.getElementById('messageSearchBtn');
+            const messageResetBtn = document.getElementById('messageResetBtn');
+            
+            if (messageSearchBtn) {
+                messageSearchBtn.addEventListener('click', async () => {
+                    const search = messageSearchInput.value;
+                    const isRead = messageReadFilter.value;
+                    await loadMessagesWithFilters(search, isRead, 1);
+                });
+            }
+            
+            if (messageResetBtn) {
+                messageResetBtn.addEventListener('click', async () => {
+                    messageSearchInput.value = '';
+                    messageReadFilter.value = '';
+                    await loadMessagesWithFilters('', '', 1);
+                });
+            }
+        }
+        
+        // Səhifə yükləndikdə axtarış funksiyalarını qur
+        setupAdminSearchAndPagination();
     </script>
 </body>
 </html>

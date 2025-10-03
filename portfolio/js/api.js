@@ -244,6 +244,152 @@ const adminAPI = {
     }
 };
 
+// Bloq məqalələri funksiyaları
+const postsAPI = {
+    // Bütün məqalələri əldə et
+    getAll: async (page = 1, limit = 10) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/posts?page=${page}&limit=${limit}`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Məqalələr əldə etmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    },
+
+    // Məqaləni slug ilə əldə et
+    getBySlug: async (slug) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/posts/${slug}`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Məqalə əldə etmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    },
+
+    // Yeni məqalə yarat (admin only)
+    create: async (postData) => {
+        try {
+            const formData = new FormData();
+            formData.append('title', postData.title);
+            formData.append('content', postData.content);
+            formData.append('excerpt', postData.excerpt);
+            formData.append('status', postData.status);
+            
+            if (postData.featured_image) {
+                formData.append('featured_image', postData.featured_image);
+            }
+            
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts`, {
+                method: 'POST',
+                headers: {
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Məqalə yaratma xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    },
+
+    // Məqaləni redaktə et (admin only)
+    update: async (id, postData) => {
+        try {
+            const formData = new FormData();
+            formData.append('title', postData.title);
+            formData.append('content', postData.content);
+            formData.append('excerpt', postData.excerpt);
+            formData.append('status', postData.status);
+            
+            if (postData.featured_image) {
+                formData.append('featured_image', postData.featured_image);
+            }
+            
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
+                method: 'PUT',
+                headers: {
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Məqalə redaktə etmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    },
+
+    // Məqaləni sil (admin only)
+    delete: async (id) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                }
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Məqalə silmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    }
+};
+
+// Rəy funksiyaları
+const commentsAPI = {
+    // Məqaləyə rəy əlavə et
+    addComment: async (postId, content) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: JSON.stringify({ content })
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Rəy əlavə etmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    }
+};
+
+// Layihə ətraflı funksiyaları
+const projectDetailAPI = {
+    // Layihəni ID ilə əldə et
+    getById: async (id) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/projects/${id}`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Layihə əldə etmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    }
+};
+
 // Frontend funksiyaları
 const frontend = {
     // Email formatını yoxla

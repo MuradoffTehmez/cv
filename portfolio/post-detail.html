@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Məqalə Detalları - Təhməz Muradov</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html">Təhməz Muradov</a>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <a href="index.html" class="nav-link">Ana Səhifə</a>
+                <a href="about.html" class="nav-link">Haqqında</a>
+                <a href="projects.html" class="nav-link">Layihələr</a>
+                <a href="blog.html" class="nav-link active">Bloq</a>
+                <a href="contact.html" class="nav-link">Əlaqə</a>
+                <a href="login.html" class="nav-link">Giriş</a>
+                <a href="profile.html" class="nav-link">Profil</a>
+            </div>
+            <div class="nav-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="post-detail">
+            <div class="post-detail-content">
+                <div id="post-content" class="post-content">
+                    <div class="loading">Məqalə yüklənir...</div>
+                </div>
+                
+                <div id="comments-section" class="comments-section" style="display: none;">
+                    <h2>Rəylər</h2>
+                    
+                    <div class="comments-list" id="comments-list">
+                        <!-- Rəylər burada yüklənəcək -->
+                    </div>
+                    
+                    <div id="comment-form-container" style="display: none;">
+                        <h3>Rəy bildirin</h3>
+                        <form id="comment-form" class="comment-form">
+                            <div class="form-group">
+                                <textarea id="comment-content" placeholder="Rəyinizi daxil edin..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Rəy Göndər</button>
+                        </form>
+                    </div>
+                    
+                    <div id="login-prompt" style="display: none;">
+                        <p>Rəy bildirmək üçün <a href="login.html">giriş etməlisiniz</a>.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // URL-dən slug-u əldə et
+            const urlParams = new URLSearchParams(window.location.search);
+            const slug = urlParams.get('slug');
+            
+            if (slug) {
+                loadPostDetail(slug);
+            } else {
+                document.getElementById('post-content').innerHTML = '<p class="error">Məqalə tapılmadı</p>';
+            }
+        });
+        
+        async function loadPostDetail(slug) {
+            try {
+                const response = await fetch(`http://localhost:5001/api/posts/${slug}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const post = data.post;
+                    const postContent = document.getElementById('post-content');
+                    
+                    postContent.innerHTML = `
+                        <div class="post-header">
+                            <h1>${post.title}</h1>
+                            <div class="post-meta">
+                                <span class="author">${post.author_username}</span>
+                                <span class="date">${new Date(post.created_at).toLocaleDateString('az-AZ')}</span>
+                            </div>
+                        </div>
+                        
+                        ${post.featured_image ? 
+                            `<div class="post-featured-image">
+                                <img src="${post.featured_image}" alt="${post.title}">
+                            </div>` : ''
+                        }
+                        
+                        <div class="post-body">
+                            <div class="post-text">${post.content}</div>
+                        </div>
+                    `;
+                    
+                    // Rəy bölməsini göstər
+                    document.getElementById('comments-section').style.display = 'block';
+                    
+                    // Giriş vəziyyətini yoxla və rəy formasını göstər ya da gizlə
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                        document.getElementById('comment-form-container').style.display = 'block';
+                        document.getElementById('login-prompt').style.display = 'none';
+                    } else {
+                        document.getElementById('comment-form-container').style.display = 'none';
+                        document.getElementById('login-prompt').style.display = 'block';
+                    }
+                    
+                    // Rəy formunu quraşdır
+                    setupCommentForm(post.id);
+                } else {
+                    document.getElementById('post-content').innerHTML = '<p class="error">Məqalə tapılmadı</p>';
+                }
+            } catch (error) {
+                console.error('Xəta:', error);
+                document.getElementById('post-content').innerHTML = '<p class="error">Məqalə yüklənərkən xəta baş verdi</p>';
+            }
+        }
+        
+        function setupCommentForm(postId) {
+            const commentForm = document.getElementById('comment-form');
+            if (commentForm) {
+                commentForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const content = document.getElementById('comment-content').value;
+                    
+                    if (!content.trim()) {
+                        showToast('Rəy mətni boş ola bilməz!', 'error');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`http://localhost:5001/api/posts/${postId}/comments`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({ content })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            showToast('Rəyiniz uğurla əlavə olundu!', 'success');
+                            document.getElementById('comment-content').value = '';
+                            // Burada rəyi dərhal göstərmək olar, amma sadəlik üçün səhifəni yeniləyirik
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showToast(data.message || 'Rəy əlavə olunarkən xəta baş verdi', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Xəta:', error);
+                        showToast('Serverə əlaqə xətası', 'error');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

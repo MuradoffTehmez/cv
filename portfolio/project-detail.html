@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layihə Detalları - Təhməz Muradov</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html">Təhməz Muradov</a>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <a href="index.html" class="nav-link">Ana Səhifə</a>
+                <a href="about.html" class="nav-link">Haqqında</a>
+                <a href="projects.html" class="nav-link active">Layihələr</a>
+                <a href="blog.html" class="nav-link">Bloq</a>
+                <a href="contact.html" class="nav-link">Əlaqə</a>
+                <a href="login.html" class="nav-link">Giriş</a>
+                <a href="profile.html" class="nav-link">Profil</a>
+            </div>
+            <div class="nav-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="project-detail">
+            <div class="project-detail-content">
+                <div id="project-content" class="project-content">
+                    <div class="loading">Layihə yüklənir...</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // URL-dən ID-ni əldə et
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('id');
+            
+            if (projectId) {
+                loadProjectDetail(projectId);
+            } else {
+                document.getElementById('project-content').innerHTML = '<p class="error">Layihə tapılmadı</p>';
+            }
+        });
+        
+        async function loadProjectDetail(projectId) {
+            try {
+                const response = await fetch(`http://localhost:5001/api/projects/${projectId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const project = data.project;
+                    const projectContent = document.getElementById('project-content');
+                    
+                    // Qalereya şəkillərini HTML-ə çevir
+                    let galleryHtml = '';
+                    if (project.gallery_images && project.gallery_images.length > 0) {
+                        galleryHtml = `
+                            <div class="project-gallery">
+                                <h3>Layihə Şəkilləri</h3>
+                                <div class="gallery-images">
+                                    ${project.gallery_images.map(img => `
+                                        <div class="gallery-item">
+                                            <img src="${img}" alt="Layihə şəkli" onerror="this.src='images/project-placeholder.jpg';">
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Demo və mənbə kodu linkləri
+                    let linksHtml = '';
+                    if (project.demo_url || project.source_code_url) {
+                        linksHtml = `
+                            <div class="project-links">
+                                ${project.demo_url ? `<a href="${project.demo_url}" target="_blank" class="btn btn-primary">Canlı Demo</a>` : ''}
+                                ${project.source_code_url ? `<a href="${project.source_code_url}" target="_blank" class="btn btn-secondary">Mənbə Kodu</a>` : ''}
+                            </div>
+                        `;
+                    }
+                    
+                    projectContent.innerHTML = `
+                        <div class="project-header">
+                            <h1>${project.title}</h1>
+                            <div class="project-meta">
+                                <span class="author">Müəllif: ${project.user_username}</span>
+                                <span class="date">${new Date(project.start_date).toLocaleDateString('az-AZ')} - ${project.end_date ? new Date(project.end_date).toLocaleDateString('az-AZ') : 'Davam edir'}</span>
+                                <span class="status ${project.status}">${project.status}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="project-image">
+                            ${project.image_url ? 
+                                `<img src="${project.image_url}" alt="${project.title}" onerror="this.src='images/project-placeholder.jpg';">` : 
+                                '<div class="placeholder-image">Təsvir yoxdur</div>'
+                            }
+                        </div>
+                        
+                        <div class="project-description">
+                            <h2>Təsvir</h2>
+                            <p>${project.description}</p>
+                        </div>
+                        
+                        ${galleryHtml}
+                        
+                        <div class="project-tech">
+                            <h2>İstifadə Olunan Texnologiyalar</h2>
+                            <div class="tech-stack">
+                                ${project.technologies.map(tech => `<span class="tech">${tech}</span>`).join('')}
+                            </div>
+                        </div>
+                        
+                        ${linksHtml}
+                    `;
+                } else {
+                    document.getElementById('project-content').innerHTML = '<p class="error">Layihə tapılmadı</p>';
+                }
+            } catch (error) {
+                console.error('Xəta:', error);
+                document.getElementById('project-content').innerHTML = '<p class="error">Layihə yüklənərkən xəta baş verdi</p>';
+            }
+        }
+    </script>
+</body>
+</html>

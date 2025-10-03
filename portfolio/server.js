@@ -140,9 +140,56 @@ const createTables = async () => {
                 status VARCHAR(20) DEFAULT 'active',
                 image_url VARCHAR(255),
                 project_url VARCHAR(255),
+                demo_url VARCHAR(255),
+                source_code_url VARCHAR(255),
+                gallery_images TEXT[], -- şəkil URL-ləri arrayı
                 user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Bloq məqalələri cədvəli
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS posts (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(200) NOT NULL,
+                content TEXT NOT NULL,
+                excerpt TEXT,
+                slug VARCHAR(200) UNIQUE NOT NULL,
+                featured_image VARCHAR(255),
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(20) DEFAULT 'draft', -- 'draft', 'published'
+                published_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Rəylər cədvəli
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS comments (
+                id SERIAL PRIMARY KEY,
+                content TEXT NOT NULL,
+                post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                parent_id INTEGER REFERENCES comments(id), -- cavablar üçün
+                status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Əlaqə mesajları cədvəli
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(100) NOT NULL,
+                subject VARCHAR(200) NOT NULL,
+                message TEXT NOT NULL,
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
@@ -749,6 +796,610 @@ app.get('/api/admin/projects', auth, admin, async (req, res) => {
         });
     } catch (error) {
         console.error('Admin layihələri xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// BLOQ MƏQALƏLƏRİ API ENDPOINT'LƏRİ
+// Bütün məqalələri əldə et (statusu published olanlar)
+app.get('/api/posts', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        
+        // Məlumatları əldə et
+        const result = await pool.query(`
+            SELECT p.id, p.title, p.excerpt, p.slug, p.featured_image, p.created_at, p.updated_at,
+                   u.username as author_username
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.status = 'published'
+            ORDER BY p.created_at DESC
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
+        
+        // Ümumi məqalə sayını əldə et
+        const countResult = await pool.query(`
+            SELECT COUNT(*) as total
+            FROM posts
+            WHERE status = 'published'
+        `);
+        
+        const total = parseInt(countResult.rows[0].total);
+        const totalPages = Math.ceil(total / limit);
+        
+        res.status(200).json({
+            success: true,
+            posts: result.rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalPosts: total,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            }
+        });
+    } catch (error) {
+        console.error('Məqalələr alınarkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Məqaləni slug ilə əldə et
+app.get('/api/posts/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        
+        const result = await pool.query(`
+            SELECT p.id, p.title, p.content, p.excerpt, p.slug, p.featured_image, 
+                   p.created_at, p.updated_at, p.published_at,
+                   u.username as author_username, u.profile_avatar as author_avatar
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.slug = $1 AND p.status = 'published'
+        `, [slug]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Məqalə tapılmadı'
+            });
+        }
+        
+        // Məqaləni oxunan sayda artırmaq üçün əlavə funksionallıq (əgər lazımsa)
+        const post = result.rows[0];
+        
+        res.status(200).json({
+            success: true,
+            post: post
+        });
+    } catch (error) {
+        console.error('Məqalə alınarkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Yeni məqalə yarat (yalnız admin)
+app.post('/api/posts', auth, admin, upload.single('featured_image'), async (req, res) => {
+    try {
+        const { title, content, excerpt, status } = req.body;
+        
+        // Slug yaradırıq (kiçik hərf və tire ilə)
+        const slug = title.toLowerCase()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        
+        // Şəkil yoxlanır
+        let featuredImage = null;
+        if (req.file) {
+            featuredImage = `/uploads/${req.file.filename}`;
+        }
+        
+        // Məqaləni verilənlər bazasına əlavə edirik
+        const result = await pool.query(`
+            INSERT INTO posts (title, content, excerpt, slug, featured_image, user_id, status, published_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $7 = 'published' THEN NOW() ELSE NULL END)
+            RETURNING id, title, slug, created_at, updated_at
+        `, [title, content, excerpt, slug, featuredImage, req.user.id, status || 'draft']);
+        
+        res.status(201).json({
+            success: true,
+            message: 'Məqalə uğurla yaradıldı',
+            post: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Məqalə yaradarkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Məqaləni redaktə et (yalnız admin)
+app.put('/api/posts/:id', auth, admin, upload.single('featured_image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, content, excerpt, status } = req.body;
+        
+        // Mövcud məqaləni yoxlayaq
+        const existingPost = await pool.query('SELECT * FROM posts WHERE id = $1', [id]);
+        if (existingPost.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Məqalə tapılmadı'
+            });
+        }
+        
+        // Mövcud məqalənin sahibi deyilsə və admin deyilsə icazə yoxdur
+        if (existingPost.rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Giriş icazəsi yoxdur'
+            });
+        }
+        
+        // Əgər başlıq dəyişilibsə, yeni slug yarat
+        let slug = existingPost.rows[0].slug;
+        if (title !== existingPost.rows[0].title) {
+            slug = title.toLowerCase()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/[\s_-]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+        
+        // Şəkil yoxlanır
+        let featuredImage = existingPost.rows[0].featured_image;
+        if (req.file) {
+            featuredImage = `/uploads/${req.file.filename}`;
+        }
+        
+        // Məqaləni yeniləyirik
+        const result = await pool.query(`
+            UPDATE posts
+            SET title = $1, content = $2, excerpt = $3, slug = $4, 
+                featured_image = $5, status = $6, updated_at = CURRENT_TIMESTAMP,
+                published_at = CASE WHEN $6 = 'published' AND published_at IS NULL THEN NOW()
+                                   WHEN $6 != 'published' THEN NULL
+                                   ELSE published_at END
+            WHERE id = $7
+            RETURNING id, title, slug, status, created_at, updated_at
+        `, [title, content, excerpt, slug, featuredImage, status, id]);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Məqalə uğurla yeniləndi',
+            post: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Məqalə yenilənərkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Məqaləni sil (yalnız admin)
+app.delete('/api/posts/:id', auth, admin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await pool.query('DELETE FROM posts WHERE id = $1', [id]);
+        
+        if (result.rowCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Məqalə tapılmadı'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Məqalə uğurla silindi'
+        });
+    } catch (error) {
+        console.error('Məqalə silinərkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// PROJEKT DETAYLARI API ENDPOINT'LƏRI
+// Layihəni ID ilə əldə et
+app.get('/api/projects/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await pool.query(`
+            SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
+                   p.image_url, p.project_url, p.demo_url, p.source_code_url, p.gallery_images,
+                   u.username as user_username
+            FROM projects p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = $1
+        `, [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Layihə tapılmadı'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            project: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Layihə alınarkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// RƏYLƏR API ENDPOINT'LƏRI
+// Məqaləyə rəy əlavə et
+app.post('/api/posts/:id/comments', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { content, parent_id } = req.body;
+        
+        // Məqalə mövcudluğunu yoxlayaq
+        const postResult = await pool.query('SELECT id FROM posts WHERE id = $1 AND status = \'published\'', [id]);
+        if (postResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Məqalə tapılmadı'
+            });
+        }
+        
+        // Rəyi yaradırıq
+        const result = await pool.query(`
+            INSERT INTO comments (content, post_id, user_id, parent_id, status)
+            VALUES ($1, $2, $3, $4, 'approved') -- Rəylər avtomatik təsdiqlənir
+            RETURNING id, content, created_at
+        `, [content, id, req.user.id, parent_id || null]);
+        
+        res.status(201).json({
+            success: true,
+            message: 'Rəy uğurla əlavə olundu',
+            comment: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Rəy əlavə olunarkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Əlaqə mesajlarını verilənlər bazasına yaz
+app.post('/api/contact', async (req, res) => {
+    try {
+        const { name, email, subject, message } = req.body;
+        
+        // Mesajı verilənlər bazasına əlavə edirik
+        const result = await pool.query(`
+            INSERT INTO messages (name, email, subject, message)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id, created_at
+        `, [name, email, subject, message]);
+        
+        // Əgər konfiqurasiya varsa, email göndərilir
+        if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
+            const nodemailer = require('nodemailer');
+            
+            const transporter = nodemailer.createTransporter({
+                host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+                port: process.env.SMTP_PORT || 587,
+                secure: false, // true for 465, false for other ports
+                auth: {
+                    user: process.env.SMTP_EMAIL,
+                    pass: process.env.SMTP_PASSWORD
+                }
+            });
+
+            // Email göndərmə
+            const mailOptions = {
+                from: process.env.SMTP_EMAIL,
+                to: process.env.CONTACT_EMAIL || process.env.SMTP_EMAIL,
+                subject: `Contact Form: ${subject}`,
+                text: `
+Name: ${name}
+Email: ${email}
+Subject: ${subject}
+Message: ${message}
+                `,
+                html: `
+<h2>Contact Form Message</h2>
+<p><strong>Name:</strong> ${name}</p>
+<p><strong>Email:</strong> ${email}</p>
+<p><strong>Subject:</strong> ${subject}</p>
+<p><strong>Message:</strong></p>
+<p>${message.replace(/\n/g, '<br>')}</p>
+                `
+            };
+
+            await transporter.sendMail(mailOptions);
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Mesajınız uğurla göndərildi!'
+        });
+    } catch (error) {
+        console.error('Contact form xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Mesaj göndərilərkən xəta baş verdi'
+        });
+    }
+});
+
+// ADMIN PANEL İSTİFADƏLƏRİ (RƏY VƏ MESAJ IDARƏETMƏ)
+// Bütün rəyləri əldə et (yalnız admin)
+app.get('/api/admin/comments', auth, admin, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const status = req.query.status || '';
+        const search = req.query.search || '';
+        const offset = (page - 1) * limit;
+        
+        let whereClause = '';
+        const queryParams = [];
+        let paramIndex = 1;
+        
+        if (status) {
+            whereClause += ` AND c.status = ${paramIndex} `;
+            queryParams.push(status);
+            paramIndex++;
+        }
+        
+        if (search) {
+            whereClause += ` AND (c.content ILIKE ${paramIndex} OR u.username ILIKE ${paramIndex}) `;
+            queryParams.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        // Rəyləri əldə edirik
+        const result = await pool.query(`
+            SELECT c.id, c.content, c.status, c.created_at, c.updated_at,
+                   u.username as user_username, p.title as post_title, p.slug as post_slug
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            JOIN posts p ON c.post_id = p.id
+            WHERE 1=1 ${whereClause}
+            ORDER BY c.created_at DESC
+            LIMIT ${paramIndex} OFFSET ${paramIndex + 1}
+        `, [...queryParams, limit, offset]);
+        
+        // Ümumi say
+        const countResult = await pool.query(`
+            SELECT COUNT(*) as total
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            JOIN posts p ON c.post_id = p.id
+            WHERE 1=1 ${whereClause}
+        `, queryParams);
+        
+        const total = parseInt(countResult.rows[0].total);
+        const totalPages = Math.ceil(total / limit);
+        
+        res.status(200).json({
+            success: true,
+            comments: result.rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalComments: total,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            }
+        });
+    } catch (error) {
+        console.error('Rəylər alınarkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Rəy statusunu dəyiş (yalnız admin)
+app.put('/api/admin/comments/:id', auth, admin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        
+        const result = await pool.query(`
+            UPDATE comments
+            SET status = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            RETURNING id, status
+        `, [status, id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Rəy tapılmadı'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Rəy statusu uğurla yeniləndi',
+            comment: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Rəy statusu yenilənərkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Rəy sil (yalnız admin)
+app.delete('/api/admin/comments/:id', auth, admin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await pool.query('DELETE FROM comments WHERE id = $1', [id]);
+        
+        if (result.rowCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Rəy tapılmadı'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Rəy uğurla silindi'
+        });
+    } catch (error) {
+        console.error('Rəy silinərkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Bütün əlaqə mesajlarını əldə et (yalnız admin)
+app.get('/api/admin/messages', auth, admin, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const is_read = req.query.is_read;
+        const search = req.query.search || '';
+        const offset = (page - 1) * limit;
+        
+        let whereClause = '';
+        const queryParams = [];
+        let paramIndex = 1;
+        
+        if (is_read !== undefined) {
+            whereClause += ` AND m.is_read = ${paramIndex} `;
+            queryParams.push(is_read === 'true');
+            paramIndex++;
+        }
+        
+        if (search) {
+            whereClause += ` AND (m.name ILIKE ${paramIndex} OR m.email ILIKE ${paramIndex} OR m.subject ILIKE ${paramIndex} OR m.message ILIKE ${paramIndex}) `;
+            queryParams.push(`%${search}%`);
+            paramIndex++;
+        }
+        
+        // Mesajları əldə edirik
+        const result = await pool.query(`
+            SELECT m.id, m.name, m.email, m.subject, m.message, m.is_read, m.created_at
+            FROM messages m
+            WHERE 1=1 ${whereClause}
+            ORDER BY m.created_at DESC
+            LIMIT ${paramIndex} OFFSET ${paramIndex + 1}
+        `, [...queryParams, limit, offset]);
+        
+        // Ümumi say
+        const countResult = await pool.query(`
+            SELECT COUNT(*) as total
+            FROM messages m
+            WHERE 1=1 ${whereClause}
+        `, queryParams);
+        
+        const total = parseInt(countResult.rows[0].total);
+        const totalPages = Math.ceil(total / limit);
+        
+        res.status(200).json({
+            success: true,
+            messages: result.rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalMessages: total,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            }
+        });
+    } catch (error) {
+        console.error('Mesajlar alınarkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Əlaqə mesajı oxunub/oxunmayıb statusunu dəyiş (yalnız admin)
+app.put('/api/admin/messages/:id', auth, admin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { is_read } = req.body;
+        
+        const result = await pool.query(`
+            UPDATE messages
+            SET is_read = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            RETURNING id, is_read
+        `, [is_read, id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Mesaj tapılmadı'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Mesaj statusu uğurla yeniləndi',
+            messageInfo: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Mesaj statusu yenilənərkən xəta:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Admin panel statistikası (yalnız admin)
+app.get('/api/admin/stats', auth, admin, async (req, res) => {
+    try {
+        const statsResult = await pool.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM users) as total_users,
+                (SELECT COUNT(*) FROM projects) as total_projects,
+                (SELECT COUNT(*) FROM posts) as total_posts,
+                (SELECT COUNT(*) FROM comments) as total_comments,
+                (SELECT COUNT(*) FROM messages WHERE is_read = false) as unread_messages
+        `);
+        
+        res.status(200).json({
+            success: true,
+            stats: statsResult.rows[0]
+        });
+    } catch (error) {
+        console.error('Statistika alınarkən xəta:', error);
         res.status(500).json({
             success: false,
             message: 'Server xətası'

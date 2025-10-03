@@ -20,6 +20,7 @@
                 <a href="index.html" class="nav-link">Ana Səhifə</a>
                 <a href="about.html" class="nav-link">Haqqında</a>
                 <a href="projects.html" class="nav-link active">Layihələr</a>
+                <a href="blog.html" class="nav-link">Bloq</a>
                 <a href="contact.html" class="nav-link">Əlaqə</a>
                 <a href="login.html" class="nav-link">Giriş</a>
                 <a href="profile.html" class="nav-link">Profil</a>
@@ -81,6 +82,7 @@
                                     <div class="tech-stack">
                                         ${project.technologies ? project.technologies.map(tech => `<span class="tech">${tech}</span>`).join('') : ''}
                                     </div>
+                                    <a href="project-detail.html?id=${project.id}" class="btn btn-primary project-link">Ətraflı Bax</a>
                                 </div>
                             `;
                         });
