@@ -288,7 +288,7 @@
         async function loadAdminData() {
             try {
                 // Statistik məlumatları yüklə
-                const statsResponse = await fetch('http://localhost:5001/api/admin/stats', {
+                const statsResponse = await fetch('http://localhost:5000/api/admin/stats', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -441,7 +441,7 @@
         // Filtrlərlə istifadəçiləri yüklə
         async function loadUsersWithFilters(search = '', role = '', page = 1) {
             try {
-                const usersData = await fetch(`http://localhost:5001/api/admin/users?page=${page}&limit=10&search=${encodeURIComponent(search)}&role=${encodeURIComponent(role)}`, {
+                const usersData = await fetch(`http://localhost:5000/api/admin/users?page=${page}&limit=10&search=${encodeURIComponent(search)}&role=${encodeURIComponent(role)}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -479,7 +479,7 @@
         // Filtrlərlə layihələri yüklə
         async function loadProjectsWithFilters(search = '', status = '', page = 1) {
             try {
-                const projectsData = await fetch(`http://localhost:5001/api/admin/projects?page=${page}&limit=10&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`, {
+                const projectsData = await fetch(`http://localhost:5000/api/admin/projects?page=${page}&limit=10&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -618,7 +618,7 @@
         // Məqalələr funksiyaları
         async function loadPostsWithFilters(search = '', status = '', page = 1) {
             try {
-                let url = `http://localhost:5001/api/posts?page=${page}&limit=10`;
+                let url = `http://localhost:5000/api/posts?page=${page}&limit=10`;
                 if (search) {
                     url += `&search=${encodeURIComponent(search)}`;
                 }
@@ -688,7 +688,7 @@
         // Rəylər funksiyaları
         async function loadCommentsWithFilters(search = '', status = '', page = 1) {
             try {
-                let url = `http://localhost:5001/api/admin/comments?page=${page}&limit=10`;
+                let url = `http://localhost:5000/api/admin/comments?page=${page}&limit=10`;
                 if (search) {
                     url += `&search=${encodeURIComponent(search)}`;
                 }
@@ -740,7 +740,7 @@
         // Rəy statusunu dəyiş
         async function changeCommentStatus(commentId, newStatus) {
             try {
-                const response = await fetch(`http://localhost:5001/api/admin/comments/${commentId}`, {
+                const response = await fetch(`http://localhost:5000/api/admin/comments/${commentId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -768,7 +768,7 @@
         async function deleteComment(commentId) {
             if (confirm('Bu rəyi silmək istədiyinizə əminsiniz?')) {
                 try {
-                    const response = await fetch(`http://localhost:5001/api/admin/comments/${commentId}`, {
+                    const response = await fetch(`http://localhost:5000/api/admin/comments/${commentId}`, {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json',
@@ -816,7 +816,7 @@
         // Mesajlar funksiyaları
         async function loadMessagesWithFilters(search = '', isRead = '', page = 1) {
             try {
-                let url = `http://localhost:5001/api/admin/messages?page=${page}&limit=10`;
+                let url = `http://localhost:5000/api/admin/messages?page=${page}&limit=10`;
                 if (search) {
                     url += `&search=${encodeURIComponent(search)}`;
                 }
@@ -866,7 +866,7 @@
         // Mesaj oxunub/oxunmayıb statusunu dəyiş
         async function toggleMessageRead(messageId, newStatus) {
             try {
-                const response = await fetch(`http://localhost:5001/api/admin/messages/${messageId}`, {
+                const response = await fetch(`http://localhost:5000/api/admin/messages/${messageId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -893,7 +893,7 @@
         async function deleteMessage(messageId) {
             if (confirm('Bu mesajı silmək istədiyinizə əminsiniz?')) {
                 try {
-                    const response = await fetch(`http://localhost:5001/api/admin/messages/${messageId}`, {
+                    const response = await fetch(`http://localhost:5000/api/admin/messages/${messageId}`, {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json',
@@ -947,7 +947,7 @@
         async function deletePost(postId) {
             if (confirm('Bu məqaləni silmək istədiyinizə əminsiniz?')) {
                 try {
-                    const response = await fetch(`http://localhost:5001/api/posts/${postId}`, {
+                    const response = await fetch(`http://localhost:5000/api/posts/${postId}`, {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json',

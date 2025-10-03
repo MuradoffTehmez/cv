@@ -78,7 +78,7 @@
             try {
                 const search = document.getElementById('blog-search').value.trim();
                 
-                let url = `http://localhost:5001/api/posts?page=${page}&limit=6`;
+                let url = `http://localhost:5000/api/posts?page=${page}&limit=6`;
                 if (search) {
                     url += `&search=${encodeURIComponent(search)}`;
                 }

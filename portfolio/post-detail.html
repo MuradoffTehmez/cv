@@ -83,7 +83,7 @@
         
         async function loadPostDetail(slug) {
             try {
-                const response = await fetch(`http://localhost:5001/api/posts/${slug}`);
+                const response = await fetch(`http://localhost:5000/api/posts/${slug}`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -148,7 +148,7 @@
                     }
                     
                     try {
-                        const response = await fetch(`http://localhost:5001/api/posts/${postId}/comments`, {
+                        const response = await fetch(`http://localhost:5000/api/posts/${postId}/comments`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',

@@ -1409,7 +1409,7 @@ app.get('/api/admin/stats', auth, admin, async (req, res) => {
 
 // Server başlayanda cədvəlləri yarat
 createTables().then(() => {
-    const PORT = process.env.PORT || 5001;
+    const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
         console.log(`Server ${PORT} portunda işləyir...`);
     });
