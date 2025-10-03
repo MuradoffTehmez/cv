@@ -37,13 +37,12 @@
             <div class="projects-content">
                 <h1>Layihələrim</h1>
                 
-                <div class="restricted-content">
-                    <div class="projects-list">
-                        <!-- Layihələr burada yüklənəcək -->
-                    </div>
+                <div class="projects-list" id="projects-list">
+                    <!-- Layihələr burada yüklənəcək -->
+                    <div class="loading">Layihələr yüklənir...</div>
                 </div>
                 
-                <div class="login-prompt" style="display: block;">
+                <div class="login-prompt" id="projects-login-prompt" style="display: none;">
                     <p>Bu səhifədəki layihələrə baxmaq üçün <a href="login.html">giriş etməlisiniz</a>.</p>
                 </div>
             </div>
@@ -52,5 +51,52 @@
 
     <script src="js/script.js"></script>
     <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Layihələri yüklə
+            loadProjects();
+        });
+        
+        function loadProjects() {
+            fetch('http://localhost:5000/api/projects')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const projectsList = document.getElementById('projects-list');
+                    projectsList.innerHTML = '';
+                    
+                    if (data.projects.length === 0) {
+                        projectsList.innerHTML = '<p class="no-projects">Hələ layihə əlavə olunmayıb.</p>';
+                    } else {
+                        data.projects.forEach(project => {
+                            projectsList.innerHTML += `
+                                <div class="project-card">
+                                    <h2>${project.title}</h2>
+                                    <p>${project.description}</p>
+                                    <div class="project-details">
+                                        <p><strong>Müəllif:</strong> ${project.user_username}</p>
+                                        <p><strong>Başlama tarixi:</strong> ${new Date(project.start_date).toLocaleDateString()}</p>
+                                        <p><strong>Status:</strong> <span class="status ${project.status}">${project.status}</span></p>
+                                    </div>
+                                    <div class="tech-stack">
+                                        ${project.technologies ? project.technologies.map(tech => `<span class="tech">${tech}</span>`).join('') : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    // Giriş tələb olunan hissəni gizlə
+                    document.getElementById('projects-login-prompt').style.display = 'none';
+                } else {
+                    document.getElementById('projects-list').innerHTML = '<p class="error">Layihələr alınmadı</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Xəta:', error);
+                document.getElementById('projects-list').innerHTML = '<p class="error">Layihələr alınarkən xəta baş verdi</p>';
+            });
+        }
+    </script>
 </body>
 </html>

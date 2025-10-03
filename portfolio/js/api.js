@@ -220,11 +220,36 @@ const frontend = {
         const loginLink = document.querySelector('a[href="login.html"]');
         const registerLink = document.querySelector('a[href="register.html"]');
         const profileLink = document.querySelector('a[href="profile.html"]');
+        const adminLink = document.querySelector('a[href="admin.html"]');
         const logoutLink = document.querySelector('a[href="#logout"]');
         
         if (loginLink) loginLink.style.display = token ? 'none' : 'block';
         if (registerLink) registerLink.style.display = token ? 'none' : 'block';
         if (profileLink) profileLink.style.display = token ? 'block' : 'none';
+        
+        if (adminLink) {
+            if (token) {
+                // Admin statusu yoxlamaq üçün API çağırışı et
+                fetch(`${API_BASE_URL}/auth/me`, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.user && data.user.role === 'admin') {
+                        adminLink.style.display = 'block';
+                    } else {
+                        adminLink.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Admin statusu alınarkən xəta:', error);
+                    adminLink.style.display = 'none';
+                });
+            } else {
+                adminLink.style.display = 'none';
+            }
+        }
         
         if (logoutLink && token) {
             logoutLink.style.display = 'block';
@@ -253,6 +278,36 @@ const frontend = {
         
         // Naviqasiyanı hər səhifədə güncəllə
         frontend.updateNavigation();
+    },
+
+    // Admin keçidini idarə et
+    updateAdminLink: () => {
+        const adminLink = document.querySelector('a[href="admin.html"]');
+        const token = localStorage.getItem('token');
+        
+        if (adminLink) {
+            if (token) {
+                // Əgər token varsa, istifadəçi məlumatlarını alın və admin olub-olmadığını yoxlayın
+                fetch(`${API_BASE_URL}/auth/me`, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.user && data.user.role === 'admin') {
+                        adminLink.style.display = 'block';
+                    } else {
+                        adminLink.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('İstifadəçi məlumatı alınarkən xəta:', error);
+                    adminLink.style.display = 'none';
+                });
+            } else {
+                adminLink.style.display = 'none';
+            }
+        }
     }
 };
 

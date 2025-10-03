@@ -119,7 +119,7 @@ const auth = async (req, res, next) => {
 };
 
 // Admin icazəsi middleware
-const admin = (req, res, next) => {
+const admin = async (req, res, next) => {
     if (!req.user) {
         return res.status(401).json({
             success: false,
@@ -127,14 +127,28 @@ const admin = (req, res, next) => {
         });
     }
 
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({
+    // İstifadəçini yenidən bazadan götür və ən son rolu ilə yoxla
+    try {
+        const userResult = await pool.query('SELECT id, username, email, role FROM users WHERE id = $1', [req.user.id]);
+        const user = userResult.rows[0];
+        
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Giriş icazəsi yoxdur. Yalnız admin istifadəçilərə icazə verilir'
+            });
+        }
+
+        // İstifadəçi məlumatlarını req obyektinə yenilə
+        req.user = user;
+        next();
+    } catch (error) {
+        console.error('Admin icazəsi yoxlanarkən xəta:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Giriş icazəsi yoxdur. Yalnız admin istifadəçilərə icazə verilir'
+            message: 'Server xətası'
         });
     }
-
-    next();
 };
 
 // Autentifikasiya route-ları
@@ -274,6 +288,103 @@ app.get('/api/user/profile', auth, async (req, res) => {
         });
     } catch (error) {
         console.error('Profil məlumatı xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// İstifadəçi profilini yenilə
+app.put('/api/user/profile', auth, async (req, res) => {
+    try {
+        const { profile } = req.body;
+        
+        // Profil məlumatlarını yenilə
+        const result = await pool.query(
+            `UPDATE users 
+             SET profile_name = $1, profile_title = $2, profile_bio = $3, 
+                 profile_location = $4, profile_phone = $5, 
+                 profile_social_linkedin = $6, profile_social_github = $7, 
+                 profile_social_twitter = $8,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $9
+             RETURNING id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter`,
+            [
+                profile.profile_name || '',
+                profile.profile_title || '',
+                profile.profile_bio || '',
+                profile.profile_location || '',
+                profile.profile_phone || '',
+                profile.profile_social_linkedin || '',
+                profile.profile_social_github || '',
+                profile.profile_social_twitter || '',
+                req.user.id
+            ]
+        );
+
+        const user = result.rows[0];
+
+        res.status(200).json({
+            success: true,
+            message: 'Profil uğurla yeniləndi',
+            user
+        });
+    } catch (error) {
+        console.error('Profil yeniləmə xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Şifrəni dəyiş
+app.put('/api/user/changepassword', auth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        // Cari istifadəçini şifrə ilə birlikdə götür
+        const userResult = await pool.query(
+            'SELECT id, password FROM users WHERE id = $1',
+            [req.user.id]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'İstifadəçi tapılmadı'
+            });
+        }
+
+        const user = userResult.rows[0];
+
+        // Cari şifrəni yoxla
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Hazırkı şifrə səhvdir'
+            });
+        }
+
+        // Yeni şifrəni hash et
+        const salt = await bcrypt.genSalt(10);
+        const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+        // Yeni şifrəni yenilə
+        await pool.query(
+            'UPDATE users SET password = $1 WHERE id = $2',
+            [hashedNewPassword, req.user.id]
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Şifrə uğurla dəyişdirildi'
+        });
+    } catch (error) {
+        console.error('Şifrə dəyişmə xətası:', error);
         res.status(500).json({
             success: false,
             message: 'Server xətası'

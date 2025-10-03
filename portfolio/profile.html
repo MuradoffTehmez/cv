@@ -213,6 +213,155 @@
     <script src="js/script.js"></script>
     <script src="js/api.js"></script>
     <script>
+        // Profil səhifəsi üçün təhlükəsizlik yoxlaması
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                // Token yoxdursa, giriş səhifəsinə yönləndir
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Token varsa, istifadəçi məlumatlarını yüklə
+            loadProfileData();
+        });
+        
+        // Profil məlumatlarını yüklə
+        function loadProfileData() {
+            const token = localStorage.getItem('token');
+            
+            fetch('http://localhost:5000/api/user/profile', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const user = data.user;
+                    
+                    // Profil məlumatlarını göstər
+                    document.getElementById('profileName').textContent = user.profile_name || user.username;
+                    document.getElementById('profileTitle').textContent = user.profile_title || 'İstifadəçi';
+                    document.getElementById('profileLocation').textContent = user.profile_location || '';
+                    document.getElementById('username').textContent = user.username;
+                    document.getElementById('email').textContent = user.email;
+                    document.getElementById('phone').textContent = user.profile_phone || 'Əlavə edilməyib';
+                    document.getElementById('experience').textContent = '4 il+';
+                    document.getElementById('specialization').textContent = 'Software & Cybersecurity';
+                    
+                    // Əlaqə məlumatları
+                    document.getElementById('linkedin').textContent = user.profile_social_linkedin || 'Əlavə edilməyib';
+                    document.getElementById('linkedin').href = user.profile_social_linkedin || '#';
+                    document.getElementById('github').textContent = user.profile_social_github || 'Əlavə edilməyib';
+                    document.getElementById('github').href = user.profile_social_github || '#';
+                    
+                    // Redaktə formunda məlumatları göstər
+                    document.getElementById('editName').value = user.profile_name || '';
+                    document.getElementById('editTitle').value = user.profile_title || '';
+                    document.getElementById('editEmail').value = user.email;
+                    document.getElementById('editPhone').value = user.profile_phone || '';
+                    document.getElementById('editBio').value = user.profile_bio || '';
+                    document.getElementById('editLinkedIn').value = user.profile_social_linkedin || '';
+                    document.getElementById('editGitHub').value = user.profile_social_github || '';
+                } else {
+                    alert('Profil məlumatları alınmadı: ' + data.message);
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Xəta:', error);
+                alert('Profil məlumatları alınarkən xəta baş verdi');
+                window.location.href = 'login.html';
+            });
+        }
+        
+        // Profil məlumatlarını yenilə
+        document.getElementById('profileForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const token = localStorage.getItem('token');
+            const profileData = {
+                profile_name: document.getElementById('editName').value,
+                profile_title: document.getElementById('editTitle').value,
+                profile_bio: document.getElementById('editBio').value,
+                profile_location: document.getElementById('editLocation') ? document.getElementById('editLocation').value : '',
+                profile_phone: document.getElementById('editPhone').value,
+                profile_social_linkedin: document.getElementById('editLinkedIn').value,
+                profile_social_github: document.getElementById('editGitHub').value
+            };
+            
+            fetch('http://localhost:5000/api/user/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ profile: profileData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Profil məlumatları uğurla yeniləndi');
+                    loadProfileData(); // Səhifəni yenilə
+                } else {
+                    alert('Profil yenilənmədi: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Xəta:', error);
+                alert('Profil yenilənmədi');
+            });
+        });
+        
+        // Şifrə dəyişmə
+        document.getElementById('passwordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const token = localStorage.getItem('token');
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                alert('Yeni şifrələr uyğun gəlmir!');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                alert('Yeni şifrə ən azı 6 simvol uzunluğunda olmalıdır!');
+                return;
+            }
+            
+            fetch('http://localhost:5000/api/user/changepassword', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    currentPassword: currentPassword,
+                    newPassword: newPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Şifrə uğurla dəyişdirildi');
+                    document.getElementById('passwordForm').reset();
+                } else {
+                    alert('Şifrə dəyişdirilmədi: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Xəta:', error);
+                alert('Şifrə dəyişdirilmədi');
+            });
+        });
+        
         // Tab functionality
         document.querySelectorAll('.tab-btn').forEach(button => {
             button.addEventListener('click', () => {
@@ -241,31 +390,6 @@
                     passwordField.type = this.checked ? 'text' : 'password';
                 }
             });
-        });
-        
-        // Profile form submission
-        document.getElementById('profileForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            alert('Profil məlumatları uğurla yeniləndi!');
-        });
-        
-        // Password form submission
-        document.getElementById('passwordForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            
-            if (newPassword !== confirmPassword) {
-                alert('Yeni şifrə və təsdiqləmə uyğun gəlmir!');
-                return;
-            }
-            
-            if (newPassword.length < 6) {
-                alert('Şifrə ən azı 6 simvol uzunluğunda olmalıdır!');
-                return;
-            }
-            
-            alert('Şifrə uğurla dəyişdirildi!');
         });
         
         // Avatar upload
