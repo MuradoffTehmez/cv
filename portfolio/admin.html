@@ -338,7 +338,7 @@
         // Filtrlərlə istifadəçiləri yüklə
         async function loadUsersWithFilters(search = '', role = '', page = 1) {
             try {
-                const usersData = await fetch(`http://localhost:5000/api/admin/users?page=${page}&limit=10&search=${encodeURIComponent(search)}&role=${encodeURIComponent(role)}`, {
+                const usersData = await fetch(`http://localhost:5001/api/admin/users?page=${page}&limit=10&search=${encodeURIComponent(search)}&role=${encodeURIComponent(role)}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -376,7 +376,7 @@
         // Filtrlərlə layihələri yüklə
         async function loadProjectsWithFilters(search = '', status = '', page = 1) {
             try {
-                const projectsData = await fetch(`http://localhost:5000/api/admin/projects?page=${page}&limit=10&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`, {
+                const projectsData = await fetch(`http://localhost:5001/api/admin/projects?page=${page}&limit=10&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
