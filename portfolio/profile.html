@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil - Təhməz Muradov</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html">Təhməz Muradov</a>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <a href="index.html" class="nav-link">Ana Səhifə</a>
+                <a href="about.html" class="nav-link">Haqqında</a>
+                <a href="projects.html" class="nav-link">Layihələr</a>
+                <a href="contact.html" class="nav-link">Əlaqə</a>
+                <a href="login.html" class="nav-link">Giriş</a>
+                <a href="profile.html" class="nav-link active">Profil</a>
+            </div>
+            <div class="nav-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="profile">
+            <div class="profile-content">
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <img src="images/avatar.png" alt="Təhməz Muradov" id="profileImage">
+                        <div class="change-avatar">
+                            <input type="file" id="avatarUpload" accept="image/*">
+                            <label for="avatarUpload">Şəkli Dəyiş</label>
+                        </div>
+                    </div>
+                    <div class="profile-info">
+                        <h1 id="profileName">Təhməz Muradov</h1>
+                        <p id="profileTitle">Software & Cybersecurity Engineer</p>
+                        <p id="profileLocation">Naxçıvan, Azərbaycan</p>
+                    </div>
+                </div>
+                
+                <div class="profile-tabs">
+                    <button class="tab-btn active" data-tab="overview">İcmal</button>
+                    <button class="tab-btn" data-tab="edit">Redaktə Et</button>
+                    <button class="tab-btn" data-tab="security">Təhlükəsizlik</button>
+                </div>
+                
+                <div class="tab-content">
+                    <div id="overview" class="tab-pane active">
+                        <h2>Profil Məlumatları</h2>
+                        <div class="profile-details">
+                            <div class="detail-item">
+                                <strong>İstifadəçi Adı:</strong>
+                                <span id="username">temur.muradov</span>
+                            </div>
+                            <div class="detail-item">
+                                <strong>Email:</strong>
+                                <span id="email">temur.muradov@example.com</span>
+                            </div>
+                            <div class="detail-item">
+                                <strong>Telefon:</strong>
+                                <span id="phone">+994 (55) 123-45-67</span>
+                            </div>
+                            <div class="detail-item">
+                                <strong>İş Təcrübəsi:</strong>
+                                <span id="experience">4 il+</span>
+                            </div>
+                            <div class="detail-item">
+                                <strong>İxtisas:</strong>
+                                <span id="specialization">Software & Cybersecurity</span>
+                            </div>
+                        </div>
+                        
+                        <h2>Əlaqə Məlumatları</h2>
+                        <div class="contact-methods">
+                            <div class="contact-item">
+                                <strong>LinkedIn:</strong>
+                                <a href="https://linkedin.com" target="_blank" id="linkedin">linkedin.com/in/temur.muradov</a>
+                            </div>
+                            <div class="contact-item">
+                                <strong>GitHub:</strong>
+                                <a href="https://github.com" target="_blank" id="github">github.com/temur.muradov</a>
+                            </div>
+                        </div>
+                        
+                        <h2>Bacarıqlar</h2>
+                        <div class="skills-container">
+                            <div class="skill-category">
+                                <h3>Proqramlaşdırma Dilləri</h3>
+                                <ul>
+                                    <li>C#</li>
+                                    <li>JavaScript</li>
+                                    <li>Python</li>
+                                    <li>C/C++</li>
+                                    <li>SQL</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="skill-category">
+                                <h3>Texnologiyalar və Çərçivələr</h3>
+                                <ul>
+                                    <li>.NET Framework və .NET Core</li>
+                                    <li>ASP.NET MVC</li>
+                                    <li>Entity Framework</li>
+                                    <li>jQuery</li>
+                                    <li>HTML/CSS</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="edit" class="tab-pane">
+                        <h2>Profil Məlumatlarını Redaktə Et</h2>
+                        <form class="profile-form" id="profileForm">
+                            <div class="form-group">
+                                <label for="editName">Ad</label>
+                                <input type="text" id="editName" value="Təhməz Muradov">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editTitle">Vəzifə</label>
+                                <input type="text" id="editTitle" value="Software & Cybersecurity Engineer">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editEmail">Email</label>
+                                <input type="email" id="editEmail" value="temur.muradov@example.com">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editPhone">Telefon</label>
+                                <input type="tel" id="editPhone" value="+994 (55) 123-45-67">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editBio">Haqqımda</label>
+                                <textarea id="editBio" rows="4">Müasir proqram təminatı və kiber təhlükəsizlik həlləri üzrə mütəxəssis</textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editLinkedIn">LinkedIn</label>
+                                <input type="url" id="editLinkedIn" value="https://linkedin.com/in/temur.muradov">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editGitHub">GitHub</label>
+                                <input type="url" id="editGitHub" value="https://github.com/temur.muradov">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Yadda Saxla</button>
+                        </form>
+                    </div>
+                    
+                    <div id="security" class="tab-pane">
+                        <h2>Təhlükəsizlik Tənzimləmələri</h2>
+                        <div class="security-settings">
+                            <div class="security-item">
+                                <h3>Şifrəni Dəyiş</h3>
+                                <form class="security-form" id="passwordForm">
+                                    <div class="form-group">
+                                        <label for="currentPassword">Hazırkı Şifrə</label>
+                                        <input type="password" id="currentPassword" required>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="newPassword">Yeni Şifrə</label>
+                                        <input type="password" id="newPassword" required>
+                                        <div class="password-toggle">
+                                            <input type="checkbox" id="showPassword1">
+                                            <label for="showPassword1">Şifrəni göstər</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="confirmPassword">Yeni Şifrəni Təsdiqlə</label>
+                                        <input type="password" id="confirmPassword" required>
+                                        <div class="password-toggle">
+                                            <input type="checkbox" id="showPassword2">
+                                            <label for="showPassword2">Şifrəni göstər</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary">Şifrəni Yenilə</button>
+                                </form>
+                            </div>
+                            
+                            <div class="security-item">
+                                <h3>Hesab Təhlükəsizliyi</h3>
+                                <div class="security-info">
+                                    <p><strong>Son Giriş:</strong> 03.10.2025 14:10</p>
+                                    <p><strong>IP Ünvanı:</strong> 192.168.1.1</p>
+                                    <p><strong>İstifadəçi Agenti:</strong> Mozilla/5.0...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/script.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        // Tab functionality
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and panes
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.classList.remove('active');
+                });
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Show corresponding pane
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // Password visibility toggle
+        document.querySelectorAll('input[type="checkbox"][id^="showPassword"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const passwordField = this.parentElement.previousElementSibling;
+                if (passwordField && passwordField.type === 'password') {
+                    passwordField.type = this.checked ? 'text' : 'password';
+                }
+            });
+        });
+        
+        // Profile form submission
+        document.getElementById('profileForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Profil məlumatları uğurla yeniləndi!');
+        });
+        
+        // Password form submission
+        document.getElementById('passwordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                alert('Yeni şifrə və təsdiqləmə uyğun gəlmir!');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                alert('Şifrə ən azı 6 simvol uzunluğunda olmalıdır!');
+                return;
+            }
+            
+            alert('Şifrə uğurla dəyişdirildi!');
+        });
+        
+        // Avatar upload
+        document.getElementById('avatarUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    document.getElementById('profileImage').src = event.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş - Təhməz Muradov</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html">Təhməz Muradov</a>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <a href="index.html" class="nav-link">Ana Səhifə</a>
+                <a href="about.html" class="nav-link">Haqqında</a>
+                <a href="projects.html" class="nav-link">Layihələr</a>
+                <a href="contact.html" class="nav-link">Əlaqə</a>
+                <a href="login.html" class="nav-link active">Giriş</a>
+                <a href="register.html" class="nav-link">Qeydiyyat</a>
+                <a href="admin.html" class="nav-link">Admin</a>
+            </div>
+            <div class="nav-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="login">
+            <div class="login-content">
+                <h1>Giriş Et</h1>
+                <form class="login-form" id="loginForm">
+                    <div class="form-group">
+                        <label for="username">İstifadəçi Adı</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Şifrə</label>
+                        <div class="password-input-container">
+                            <input type="password" id="password" name="password" required>
+                            <span class="password-toggle-icon" id="togglePassword">👁️</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="checkbox" id="remember" name="remember">
+                        <label for="remember">Məni xatırla</label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Daxil Ol</button>
+                </form>
+                
+                <div class="login-footer">
+                    <p>Hesabınız yoxdur? <a href="register.html" class="register-link">Qeydiyyatdan keçin</a></p>
+                    <p><a href="forgot-password.html" class="forgot-password">Şifrəni unutmusunuz?</a></p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/script.js"></script>
+    <script>
+        // Password visibility toggle
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordField = document.getElementById('password');
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                this.textContent = '👁️‍🗨️';
+            } else {
+                passwordField.type = 'password';
+                this.textContent = '👁️';
+            }
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            // Sadə login təsdiqləmə nümunəsi
+            if(username === 'admin' && password === 'password') {
+                alert('Giriş uğurludur! Xoş gəldiniz, ' + username + '!');
+                // Burada həqiqi tətbiqdə istifadəçi məlumatları saxlanan səhifəyə yönləndirmə ediləcək
+                window.location.href = 'profile.html';
+            } else {
+                alert('Yanlış istifadəçi adı və ya şifrə!');
+            }
+        });
+    </script>
+    <script src="js/api.js"></script>
+</body>
+</html>

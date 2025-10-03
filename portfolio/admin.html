@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Təhməz Muradov</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html">Təhməz Muradov</a>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <a href="index.html" class="nav-link">Ana Səhifə</a>
+                <a href="about.html" class="nav-link">Haqqında</a>
+                <a href="projects.html" class="nav-link">Layihələr</a>
+                <a href="contact.html" class="nav-link">Əlaqə</a>
+                <a href="login.html" class="nav-link">Giriş</a>
+                <a href="admin.html" class="nav-link active">Admin</a>
+            </div>
+            <div class="nav-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="admin-panel">
+            <div class="admin-content">
+                <h1>Admin Panel</h1>
+                
+                <div class="admin-tabs">
+                    <button class="tab-btn active" data-tab="dashboard">İdarə paneli</button>
+                    <button class="tab-btn" data-tab="projects">Layihələr</button>
+                    <button class="tab-btn" data-tab="users">İstifadəçilər</button>
+                    <button class="tab-btn" data-tab="settings">Tənzimləmələr</button>
+                </div>
+                
+                <div class="tab-content">
+                    <div id="dashboard" class="tab-pane active">
+                        <h2>Statistikalar</h2>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h3>Layihələr</h3>
+                                <p class="stat-number">12</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>İstifadəçilər</h3>
+                                <p class="stat-number">5</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Mesajlar</h3>
+                                <p class="stat-number">24</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="projects" class="tab-pane">
+                        <h2>Layihələr İdarəetməsi</h2>
+                        <button class="btn btn-primary" id="addProjectBtn">Yeni Layihə Əlavə Et</button>
+                        
+                        <div class="projects-list">
+                            <div class="project-item">
+                                <h3>AzAgroPOS</h3>
+                                <p>Birgə satılan mallar üçün növbəti nəsildə poçt sistemi</p>
+                                <div class="project-actions">
+                                    <button class="btn btn-secondary edit-btn">Redaktə Et</button>
+                                    <button class="btn btn-secondary delete-btn">Sil</button>
+                                </div>
+                            </div>
+                            
+                            <div class="project-item">
+                                <h3>JavaScript Quiz App</h3>
+                                <p>İstifadəçi dostu kviz tətbiqi</p>
+                                <div class="project-actions">
+                                    <button class="btn btn-secondary edit-btn">Redaktə Et</button>
+                                    <button class="btn btn-secondary delete-btn">Sil</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="users" class="tab-pane">
+                        <h2>İstifadəçi İdarəetməsi</h2>
+                        <div class="users-list">
+                            <div class="user-item">
+                                <h3>admin</h3>
+                                <p>Administrator</p>
+                                <div class="user-actions">
+                                    <button class="btn btn-secondary edit-btn">Redaktə Et</button>
+                                    <button class="btn btn-secondary delete-btn">Sil</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="settings" class="tab-pane">
+                        <h2>Tənzimləmələr</h2>
+                        <form class="settings-form">
+                            <div class="form-group">
+                                <label for="siteTitle">Sayt Başlığı</label>
+                                <input type="text" id="siteTitle" value="Təhməz Muradov - Software & Cybersecurity Engineer">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="siteDescription">Sayt Təsviri</label>
+                                <textarea id="siteDescription" rows="3">Müasir proqram təminatı və kiber təhlükəsizlik həlləri</textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Yadda Saxla</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for adding/editing projects -->
+    <div id="projectModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">Yeni Layihə Əlavə Et</h2>
+            <form id="projectForm">
+                <div class="form-group">
+                    <label for="projectName">Layihə Adı</label>
+                    <input type="text" id="projectName" required>
+                </div>
+                <div class="form-group">
+                    <label for="projectDescription">Təsvir</label>
+                    <textarea id="projectDescription" rows="4" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="projectTech">Texnologiyalar (vergül ilə ayırın)</label>
+                    <input type="text" id="projectTech" placeholder="Məs: C#.NET, SQL, Entity Framework">
+                </div>
+                <button type="submit" class="btn btn-primary">Yadda Saxla</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        // Tab functionality
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and panes
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.classList.remove('active');
+                });
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Show corresponding pane
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // Project modal functionality
+        const modal = document.getElementById('projectModal');
+        const addProjectBtn = document.getElementById('addProjectBtn');
+        const closeBtn = document.querySelector('.close');
+        
+        addProjectBtn.addEventListener('click', () => {
+            document.getElementById('modalTitle').textContent = 'Yeni Layihə Əlavə Et';
+            document.getElementById('projectForm').reset();
+            modal.style.display = 'block';
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+        
+        // Form submission
+        document.getElementById('projectForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            alert('Layihə uğurla əlavə edildi! (Bu funksiya real serverdə işə salınacaq)');
+            modal.style.display = 'none';
+        });
+        
+        // Delete buttons functionality
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                if (confirm('Bu elementi silmək istədiyinizə əminsiniz?')) {
+                    alert('Element silindi! (Bu funksiya real serverdə işə salınacaq)');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

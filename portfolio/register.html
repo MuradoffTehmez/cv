@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qeydiyyat - Təhməz Muradov</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html">Təhməz Muradov</a>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <a href="index.html" class="nav-link">Ana Səhifə</a>
+                <a href="about.html" class="nav-link">Haqqında</a>
+                <a href="projects.html" class="nav-link">Layihələr</a>
+                <a href="contact.html" class="nav-link">Əlaqə</a>
+                <a href="login.html" class="nav-link">Giriş</a>
+                <a href="register.html" class="nav-link active">Qeydiyyat</a>
+                <a href="admin.html" class="nav-link">Admin</a>
+            </div>
+            <div class="nav-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="register">
+            <div class="register-content">
+                <h1>Qeydiyyatdan Keç</h1>
+                <form class="register-form" id="registerForm">
+                    <div class="form-group">
+                        <label for="regName">Ad</label>
+                        <input type="text" id="regName" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regUsername">İstifadəçi Adı</label>
+                        <input type="text" id="regUsername" name="username" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regEmail">Email</label>
+                        <input type="email" id="regEmail" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regPassword">Şifrə</label>
+                        <div class="password-input-container">
+                            <input type="password" id="regPassword" name="password" required>
+                            <span class="password-toggle-icon" id="toggleRegPassword">👁️</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regConfirmPassword">Şifrəni Təsdiqlə</label>
+                        <div class="password-input-container">
+                            <input type="password" id="regConfirmPassword" name="confirmPassword" required>
+                            <span class="password-toggle-icon" id="toggleRegConfirmPassword">👁️</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="checkbox" id="terms" name="terms" required>
+                        <label for="terms">İstifadəçi razılaşmasını oxudum və qəbul edirəm</label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Qeydiyyatdan Keç</button>
+                </form>
+                
+                <div class="register-footer">
+                    <p>Zatən hesabınız var? <a href="login.html" class="login-link">Giriş et</a></p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/script.js"></script>
+    <script>
+        // Password visibility toggle
+        document.getElementById('toggleRegPassword').addEventListener('click', function() {
+            const passwordField = document.getElementById('regPassword');
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                this.textContent = '👁️‍🗨️';
+            } else {
+                passwordField.type = 'password';
+                this.textContent = '👁️';
+            }
+        });
+        
+        document.getElementById('toggleRegConfirmPassword').addEventListener('click', function() {
+            const passwordField = document.getElementById('regConfirmPassword');
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                this.textContent = '👁️‍🗨️';
+            } else {
+                passwordField.type = 'password';
+                this.textContent = '👁️';
+            }
+        });
+        
+        // Registration form submission
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+            
+            if (password !== confirmPassword) {
+                alert('Şifrələr uyğun gəlmir!');
+                return;
+            }
+            
+            if (password.length < 6) {
+                alert('Şifrə ən azı 6 simvol uzunluğunda olmalıdır!');
+                return;
+            }
+            
+            alert('Qeydiyyat uğurla tamamlandı! Zəhmət olmasa emailinizi yoxlayın.');
+            // In a real application, this would submit to a server
+            // window.location.href = 'login.html';
+        });
+    </script>
+    <script src="js/api.js"></script>
+</body>
+</html>
