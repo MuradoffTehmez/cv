@@ -1,0 +1,102 @@
+# ===================================
+# Node.js ümumi .gitignore
+# ===================================
+
+# --- Node.js dependency-lər ---
+node_modules/
+jspm_packages/
+
+# --- Build / Output qovluqları ---
+dist/
+build/
+out/
+release/
+.temp/
+.tmp/
+.cache/
+
+# --- Next.js ---
+.next/
+out/
+.next/cache/
+
+# --- Nuxt.js ---
+.nuxt/
+dist/
+
+# --- Angular ---
+.angular/
+.angular/cache/
+
+# --- Gatsby ---
+.cache/
+public/
+
+# --- Vue.js ---
+/coverage/
+/node_modules/
+/dist/
+
+# --- Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Test / Coverage ---
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+.cypress/
+
+# --- Env faylları (şəxsi məlumatlar) ---
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+
+# --- Runtime faylları ---
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# --- Data / Backup faylları ---
+data/
+*.data
+*.bak
+*.backup
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+dump.sql
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.json
+*.xml
+*.yaml
+*.yml
+exports/
+imports/
+backups/
+dumps/
+
+# --- IDE / Editor faylları ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# --- OS faylları ---
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,10 +1,10 @@
 const express = require('express');
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const path = require('path');
+const dotenv = require('dotenv');
 
 dotenv.config();
 
@@ -26,64 +26,71 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Statik fayllar üçün middleware (front-end)
 app.use(express.static(path.join(__dirname, '.')));
 
-// PostgreSQL Pool yarat
-const pool = new Pool({
-    user: process.env.DB_USER || 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    database: process.env.DB_NAME || 'portfolio',
-    password: process.env.DB_PASSWORD || 'password',
-    port: process.env.DB_PORT || 5432,
+// SQLite3 database yarat
+const db = new sqlite3.Database('./portfolio.db', (err) => {
+    if (err) {
+        console.error('SQLite əlaqə xətası:', err.message);
+    } else {
+        console.log('SQLite bazasına uğurla qoşuldu');
+    }
 });
 
 // Cədvəlləri yarat
-const createTables = async () => {
-    try {
-        // İstifadəçilər cədvəli
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(30) UNIQUE NOT NULL,
-                email VARCHAR(100) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
-                role VARCHAR(20) DEFAULT 'user',
-                profile_name VARCHAR(50) DEFAULT '',
-                profile_title VARCHAR(100) DEFAULT '',
-                profile_bio VARCHAR(500) DEFAULT '',
-                profile_location VARCHAR(100) DEFAULT '',
-                profile_phone VARCHAR(20) DEFAULT '',
-                profile_avatar VARCHAR(255) DEFAULT '',
-                profile_social_linkedin VARCHAR(255) DEFAULT '',
-                profile_social_github VARCHAR(255) DEFAULT '',
-                profile_social_twitter VARCHAR(255) DEFAULT '',
-                reset_password_token VARCHAR(255),
-                reset_password_expire TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
+const createTables = () => {
+    // İstifadəçilər cədvəli
+    db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT DEFAULT 'user',
+            profile_name TEXT DEFAULT '',
+            profile_title TEXT DEFAULT '',
+            profile_bio TEXT DEFAULT '',
+            profile_location TEXT DEFAULT '',
+            profile_phone TEXT DEFAULT '',
+            profile_avatar TEXT DEFAULT '',
+            profile_social_linkedin TEXT DEFAULT '',
+            profile_social_github TEXT DEFAULT '',
+            profile_social_twitter TEXT DEFAULT '',
+            reset_password_token TEXT,
+            reset_password_expire INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `, (err) => {
+        if (err) {
+            console.error('İstifadəçilər cədvəli yaradıla bilmədi:', err.message);
+        } else {
+            console.log('İstifadəçilər cədvəli uğurla yaradıldı');
+        }
+    });
 
-        // Layihələr cədvəli
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS projects (
-                id SERIAL PRIMARY KEY,
-                title VARCHAR(100) NOT NULL,
-                description TEXT NOT NULL,
-                technologies TEXT[],
-                start_date DATE NOT NULL,
-                end_date DATE,
-                status VARCHAR(20) DEFAULT 'active',
-                image_url VARCHAR(255),
-                project_url VARCHAR(255),
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-
-        console.log('Cədvəllər uğurla yaradıldı');
-    } catch (err) {
-        console.error('Cədvəl yaratma xətası:', err);
-    }
+    // Layihələr cədvəli
+    db.run(`
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            technologies TEXT,
+            start_date TEXT NOT NULL,
+            end_date TEXT,
+            status TEXT DEFAULT 'active',
+            image_url TEXT,
+            project_url TEXT,
+            user_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+    `, (err) => {
+        if (err) {
+            console.error('Layihələr cədvəli yaradıla bilmədi:', err.message);
+        } else {
+            console.log('Layihələr cədvəli uğurla yaradıldı');
+        }
+    });
 };
 
 // JWT token yarat
@@ -94,7 +101,7 @@ const generateToken = (id) => {
 };
 
 // Giriş icazəsi middleware
-const auth = async (req, res, next) => {
+const auth = (req, res, next) => {
     let token;
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -106,19 +113,32 @@ const auth = async (req, res, next) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
             // İstifadəçini token-dən götür
-            const userResult = await pool.query('SELECT id, username, email, role FROM users WHERE id = $1', [decoded.id]);
-            req.user = userResult.rows[0];
+            db.get('SELECT id, username, email, role FROM users WHERE id = ?', [decoded.id], (err, user) => {
+                if (err) {
+                    console.error('İstifadəçi axtarışı xətası:', err.message);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Server xətası'
+                    });
+                }
 
-            next();
+                if (!user) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'Giriş icazəsi yoxdur'
+                    });
+                }
+
+                req.user = user;
+                next();
+            });
         } catch (error) {
             return res.status(401).json({
                 success: false,
                 message: 'Giriş icazəsi yoxdur'
             });
         }
-    }
-
-    if (!token) {
+    } else {
         return res.status(401).json({
             success: false,
             message: 'Giriş icazəsi yoxdur, zəhmət olmasa token daxil edin'
@@ -127,7 +147,7 @@ const auth = async (req, res, next) => {
 };
 
 // Admin icazəsi middleware
-const admin = async (req, res, next) => {
+const admin = (req, res, next) => {
     if (!req.user) {
         return res.status(401).json({
             success: false,
@@ -136,10 +156,15 @@ const admin = async (req, res, next) => {
     }
 
     // İstifadəçini yenidən bazadan götür və ən son rolu ilə yoxla
-    try {
-        const userResult = await pool.query('SELECT id, username, email, role FROM users WHERE id = $1', [req.user.id]);
-        const user = userResult.rows[0];
-        
+    db.get('SELECT id, username, email, role FROM users WHERE id = ?', [req.user.id], (err, user) => {
+        if (err) {
+            console.error('Admin icazəsi yoxlanarkən xəta:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Server xətası'
+            });
+        }
+
         if (!user || user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
@@ -150,366 +175,462 @@ const admin = async (req, res, next) => {
         // İstifadəçi məlumatlarını req obyektinə yenilə
         req.user = user;
         next();
-    } catch (error) {
-        console.error('Admin icazəsi yoxlanarkən xəta:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+    });
 };
 
 // Autentifikasiya route-ları
-app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
+app.post('/api/auth/register', (req, res) => {
+    const { username, email, password } = req.body;
 
-        // Şifrəni hash et
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+    // Şifrəni hash et
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+        if (err) {
+            console.error('Şifrə hash xətası:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Server xətası'
+            });
+        }
 
         // Yeni istifadəçi yarat
-        const result = await pool.query(
-            `INSERT INTO users (username, email, password) 
-             VALUES ($1, $2, $3) 
-             RETURNING id, username, email, role`,
-            [username, email, hashedPassword]
-        );
+        db.run(
+            `INSERT INTO users (username, email, password) VALUES (?, ?, ?)`,
+            [username, email, hashedPassword],
+            function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE constraint failed')) {
+                        if (err.message.includes('username')) {
+                            return res.status(400).json({
+                                success: false,
+                                message: 'Bu istifadəçi adı artıq mövcuddur'
+                            });
+                        } else if (err.message.includes('email')) {
+                            return res.status(400).json({
+                                success: false,
+                                message: 'Bu email artıq mövcuddur'
+                            });
+                        }
+                    }
+                    console.error('Qeydiyyat xətası:', err.message);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Server xətası'
+                    });
+                }
 
-        const user = result.rows[0];
-        const token = generateToken(user.id);
+                const userId = this.lastID;
+                const token = generateToken(userId);
 
-        res.status(201).json({
-            success: true,
-            message: 'İstifadəçi uğurla qeydiyyatdan keçdi',
-            token,
-            user
-        });
-    } catch (error) {
-        console.error('Qeydiyyat xətası:', error);
-        if (error.constraint && error.constraint.includes('users_username_key')) {
-            return res.status(400).json({
-                success: false,
-                message: 'Bu istifadəçi adı artıq mövcuddur'
-            });
-        }
-        if (error.constraint && error.constraint.includes('users_email_key')) {
-            return res.status(400).json({
-                success: false,
-                message: 'Bu email artıq mövcuddur'
-            });
-        }
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
-});
-
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        // İstifadəçini tap
-        const result = await pool.query(
-            'SELECT id, username, email, password, role FROM users WHERE username = $1 OR email = $1',
-            [username]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(401).json({
-                success: false,
-                message: 'İstifadəçi adı və ya şifrə səhvdir'
-            });
-        }
-
-        const user = result.rows[0];
-
-        // Şifrəni yoxla
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'İstifadəçi adı və ya şifrə səhvdir'
-            });
-        }
-
-        // Token yarat
-        const token = generateToken(user.id);
-
-        res.status(200).json({
-            success: true,
-            message: 'Giriş uğurludur',
-            token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: user.role
+                res.status(201).json({
+                    success: true,
+                    message: 'İstifadəçi uğurla qeydiyyatdan keçdi',
+                    token,
+                    user: {
+                        id: userId,
+                        username: username,
+                        email: email,
+                        role: 'user'
+                    }
+                });
             }
-        });
-    } catch (error) {
-        console.error('Giriş xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+        );
+    });
 });
 
-app.get('/api/auth/me', auth, async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter FROM users WHERE id = $1',
-            [req.user.id]
-        );
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
 
-        const user = result.rows[0];
+    // İstifadəçini tap
+    db.get(
+        'SELECT id, username, email, password, role FROM users WHERE username = ? OR email = ?',
+        [username, username],
+        (err, user) => {
+            if (err) {
+                console.error('Giriş xətası:', err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Server xətası'
+                });
+            }
 
-        res.status(200).json({
-            success: true,
-            user
-        });
-    } catch (error) {
-        console.error('İstifadəçi məlumatı xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+            if (!user) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'İstifadəçi adı və ya şifrə səhvdir'
+                });
+            }
+
+            // Şifrəni yoxla
+            bcrypt.compare(password, user.password, (err, isMatch) => {
+                if (err) {
+                    console.error('Şifrə müqayisə xətası:', err.message);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Server xətası'
+                    });
+                }
+
+                if (!isMatch) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'İstifadəçi adı və ya şifrə səhvdir'
+                    });
+                }
+
+                // Token yarat
+                const token = generateToken(user.id);
+
+                res.status(200).json({
+                    success: true,
+                    message: 'Giriş uğurludur',
+                    token,
+                    user: {
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        role: user.role
+                    }
+                });
+            });
+        }
+    );
+});
+
+app.get('/api/auth/me', auth, (req, res) => {
+    db.get(
+        'SELECT id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter FROM users WHERE id = ?',
+        [req.user.id],
+        (err, user) => {
+            if (err) {
+                console.error('İstifadəçi məlumatı xətası:', err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Server xətası'
+                });
+            }
+
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'İstifadəçi tapılmadı'
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                user
+            });
+        }
+    );
 });
 
 // İstifadəçi route-ları
-app.get('/api/user/profile', auth, async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter FROM users WHERE id = $1',
-            [req.user.id]
-        );
+app.get('/api/user/profile', auth, (req, res) => {
+    db.get(
+        'SELECT id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter FROM users WHERE id = ?',
+        [req.user.id],
+        (err, user) => {
+            if (err) {
+                console.error('Profil məlumatı xətası:', err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Server xətası'
+                });
+            }
 
-        const user = result.rows[0];
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'İstifadəçi tapılmadı'
+                });
+            }
 
-        res.status(200).json({
-            success: true,
-            user
-        });
-    } catch (error) {
-        console.error('Profil məlumatı xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+            res.status(200).json({
+                success: true,
+                user
+            });
+        }
+    );
 });
 
 // İstifadəçi profilini yenilə
-app.put('/api/user/profile', auth, async (req, res) => {
-    try {
-        const { profile } = req.body;
-        
-        // Profil məlumatlarını yenilə
-        const result = await pool.query(
-            `UPDATE users 
-             SET profile_name = $1, profile_title = $2, profile_bio = $3, 
-                 profile_location = $4, profile_phone = $5, 
-                 profile_social_linkedin = $6, profile_social_github = $7, 
-                 profile_social_twitter = $8,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = $9
-             RETURNING id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter`,
-            [
-                profile.profile_name || '',
-                profile.profile_title || '',
-                profile.profile_bio || '',
-                profile.profile_location || '',
-                profile.profile_phone || '',
-                profile.profile_social_linkedin || '',
-                profile.profile_social_github || '',
-                profile.profile_social_twitter || '',
-                req.user.id
-            ]
-        );
+app.put('/api/user/profile', auth, (req, res) => {
+    const { profile } = req.body;
+    
+    // Profil məlumatlarını yenilə
+    db.run(
+        `UPDATE users 
+         SET profile_name = ?, profile_title = ?, profile_bio = ?, 
+             profile_location = ?, profile_phone = ?, 
+             profile_social_linkedin = ?, profile_social_github = ?, 
+             profile_social_twitter = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [
+            profile.profile_name || '',
+            profile.profile_title || '',
+            profile.profile_bio || '',
+            profile.profile_location || '',
+            profile.profile_phone || '',
+            profile.profile_social_linkedin || '',
+            profile.profile_social_github || '',
+            profile.profile_social_twitter || '',
+            req.user.id
+        ],
+        function(err) {
+            if (err) {
+                console.error('Profil yeniləmə xətası:', err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Server xətası'
+                });
+            }
 
-        const user = result.rows[0];
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'İstifadəçi tapılmadı'
+                });
+            }
 
-        res.status(200).json({
-            success: true,
-            message: 'Profil uğurla yeniləndi',
-            user
-        });
-    } catch (error) {
-        console.error('Profil yeniləmə xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+            // Yenilənmiş istifadəçini qaytar
+            db.get(
+                'SELECT id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter FROM users WHERE id = ?',
+                [req.user.id],
+                (err, user) => {
+                    if (err) {
+                        console.error('İstifadəçi məlumatı xətası:', err.message);
+                        return res.status(500).json({
+                            success: false,
+                            message: 'Server xətası'
+                        });
+                    }
+
+                    res.status(200).json({
+                        success: true,
+                        message: 'Profil uğurla yeniləndi',
+                        user
+                    });
+                }
+            );
+        }
+    );
 });
 
 // Şifrəni dəyiş
-app.put('/api/user/changepassword', auth, async (req, res) => {
-    try {
-        const { currentPassword, newPassword } = req.body;
+app.put('/api/user/changepassword', auth, (req, res) => {
+    const { currentPassword, newPassword } = req.body;
 
-        // Cari istifadəçini şifrə ilə birlikdə götür
-        const userResult = await pool.query(
-            'SELECT id, password FROM users WHERE id = $1',
-            [req.user.id]
-        );
+    // Cari istifadəçini şifrə ilə birlikdə götür
+    db.get(
+        'SELECT id, password FROM users WHERE id = ?',
+        [req.user.id],
+        (err, user) => {
+            if (err) {
+                console.error('Şifrə dəyişmə xətası:', err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Server xətası'
+                });
+            }
 
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'İstifadəçi tapılmadı'
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'İstifadəçi tapılmadı'
+                });
+            }
+
+            // Cari şifrəni yoxla
+            bcrypt.compare(currentPassword, user.password, (err, isMatch) => {
+                if (err) {
+                    console.error('Şifrə müqayisə xətası:', err.message);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Server xətası'
+                    });
+                }
+
+                if (!isMatch) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'Hazırkı şifrə səhvdir'
+                    });
+                }
+
+                // Yeni şifrəni hash et və yenilə
+                bcrypt.hash(newPassword, 10, (err, hashedNewPassword) => {
+                    if (err) {
+                        console.error('Yeni şifrə hash xətası:', err.message);
+                        return res.status(500).json({
+                            success: false,
+                            message: 'Server xətası'
+                        });
+                    }
+
+                    db.run(
+                        'UPDATE users SET password = ? WHERE id = ?',
+                        [hashedNewPassword, req.user.id],
+                        function(err) {
+                            if (err) {
+                                console.error('Şifrə yeniləmə xətası:', err.message);
+                                return res.status(500).json({
+                                    success: false,
+                                    message: 'Server xətası'
+                                });
+                            }
+
+                            if (this.changes === 0) {
+                                return res.status(404).json({
+                                    success: false,
+                                    message: 'İstifadəçi tapılmadı'
+                                });
+                            }
+
+                            res.status(200).json({
+                                success: true,
+                                message: 'Şifrə uğurla dəyişdirildi'
+                            });
+                        }
+                    );
+                });
             });
         }
-
-        const user = userResult.rows[0];
-
-        // Cari şifrəni yoxla
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'Hazırkı şifrə səhvdir'
-            });
-        }
-
-        // Yeni şifrəni hash et
-        const salt = await bcrypt.genSalt(10);
-        const hashedNewPassword = await bcrypt.hash(newPassword, salt);
-
-        // Yeni şifrəni yenilə
-        await pool.query(
-            'UPDATE users SET password = $1 WHERE id = $2',
-            [hashedNewPassword, req.user.id]
-        );
-
-        res.status(200).json({
-            success: true,
-            message: 'Şifrə uğurla dəyişdirildi'
-        });
-    } catch (error) {
-        console.error('Şifrə dəyişmə xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+    );
 });
 
 // Frontend üçün layihələri əldə et (giriş tələb olunmur)
-app.get('/api/projects', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
-                   p.image_url, p.project_url, u.username as user_username
-            FROM projects p
-            JOIN users u ON p.user_id = u.id
-            ORDER BY p.created_at DESC
-        `);
+app.get('/api/projects', (req, res) => {
+    db.all(`
+        SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
+               p.image_url, p.project_url, u.username as user_username
+        FROM projects p
+        JOIN users u ON p.user_id = u.id
+        ORDER BY p.created_at DESC
+    `, (err, projects) => {
+        if (err) {
+            console.error('Layihələr xətası:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Server xətası'
+            });
+        }
 
-        const projects = result.rows;
+        // SQLite JSON saxlamadığı üçün technologies sütununu JSON-a çeviririk
+        const formattedProjects = projects.map(project => {
+            return {
+                ...project,
+                technologies: project.technologies ? JSON.parse(project.technologies) : []
+            };
+        });
 
         res.status(200).json({
             success: true,
-            projects
+            projects: formattedProjects
         });
-    } catch (error) {
-        console.error('Layihələr xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+    });
 });
 
 // Ana səhifə məlumatları (giriş tələb olunmur)
-app.get('/api/homepage', async (req, res) => {
-    try {
-        // Ən son 3 layihəni əldə et
-        const projectsResult = await pool.query(`
-            SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
-                   p.image_url, p.project_url, u.username as user_username
-            FROM projects p
-            JOIN users u ON p.user_id = u.id
-            ORDER BY p.created_at DESC
-            LIMIT 3
-        `);
+app.get('/api/homepage', (req, res) => {
+    // Ən son 3 layihəni əldə et
+    db.all(`
+        SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
+               p.image_url, p.project_url, u.username as user_username
+        FROM projects p
+        JOIN users u ON p.user_id = u.id
+        ORDER BY p.created_at DESC
+        LIMIT 3
+    `, (err, recentProjects) => {
+        if (err) {
+            console.error('Ana səhifə layihələri xətası:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Server xətası'
+            });
+        }
 
-        // Statistika məlumatları
-        const statsResult = await pool.query(`
+        // Ümumi statistika
+        db.get(`
             SELECT 
                 (SELECT COUNT(*) FROM users) as total_users,
                 (SELECT COUNT(*) FROM projects) as total_projects
-        `);
+        `, (err, stats) => {
+            if (err) {
+                console.error('Statistika xətası:', err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Server xətası'
+                });
+            }
 
-        const homepageData = {
-            recentProjects: projectsResult.rows,
-            stats: statsResult.rows[0]
-        };
+            const homepageData = {
+                recentProjects: recentProjects.map(project => ({
+                    ...project,
+                    technologies: project.technologies ? JSON.parse(project.technologies) : []
+                })),
+                stats: stats
+            };
 
-        res.status(200).json({
-            success: true,
-            data: homepageData
+            res.status(200).json({
+                success: true,
+                data: homepageData
+            });
         });
-    } catch (error) {
-        console.error('Ana səhifə məlumatı xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+    });
 });
 
 // Bütün istifadəçiləri əldə et (yalnız admin)
-app.get('/api/admin/users', auth, admin, async (req, res) => {
-    try {
-        const result = await pool.query('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');
+app.get('/api/admin/users', auth, admin, (req, res) => {
+    db.all('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC', (err, users) => {
+        if (err) {
+            console.error('İstifadəçilər xətası:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Server xətası'
+            });
+        }
         
         res.status(200).json({
             success: true,
-            users: result.rows
+            users: users
         });
-    } catch (error) {
-        console.error('İstifadəçilər xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+    });
 });
 
 // Bütün layihələri əldə et (yalnız admin)
-app.get('/api/admin/projects', auth, admin, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
-                   p.image_url, p.project_url, u.username as user_username, u.email as user_email
-            FROM projects p
-            JOIN users u ON p.user_id = u.id
-            ORDER BY p.created_at DESC
-        `);
+app.get('/api/admin/projects', auth, admin, (req, res) => {
+    db.all(`
+        SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
+               p.image_url, p.project_url, u.username as user_username, u.email as user_email
+        FROM projects p
+        JOIN users u ON p.user_id = u.id
+        ORDER BY p.created_at DESC
+    `, (err, projects) => {
+        if (err) {
+            console.error('Admin layihələri xətası:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Server xətası'
+            });
+        }
+
+        const formattedProjects = projects.map(project => {
+            return {
+                ...project,
+                technologies: project.technologies ? JSON.parse(project.technologies) : []
+            };
+        });
 
         res.status(200).json({
             success: true,
-            projects: result.rows
+            projects: formattedProjects
         });
-    } catch (error) {
-        console.error('Admin layihələri xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
+    });
 });
 
 // Server başlayanda cədvəlləri yarat
-createTables().then(() => {
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-        console.log(`Server ${PORT} portunda işləyir...`);
-    });
+createTables();
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server ${PORT} portunda işləyir...`);
 });
