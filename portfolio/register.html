@@ -126,9 +126,17 @@
                 return;
             }
             
-            alert('Qeydiyyat uğurla tamamlandı! Zəhmət olmasa emailinizi yoxlayın.');
-            // In a real application, this would submit to a server
-            // window.location.href = 'login.html';
+            try {
+                const response = await authAPI.register(username, email, password);
+                if (response.success) {
+                    alert('Qeydiyyat uğurla tamamlandı!');
+                    window.location.href = 'login.html';
+                } else {
+                    alert('Qeydiyyat uğursuz oldu: ' + response.message);
+                }
+            } catch (error) {
+                alert('Serverə əlaqə xətası: ' + error.message);
+            }
         });
     </script>
     <script src="js/api.js"></script>

@@ -3,16 +3,28 @@ const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const path = require('path');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
 const app = express();
 
+// CORS tənzimləmələri
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'];
+const corsOptions = {
+    origin: allowedOrigins,
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
 // Middleware-lər
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Statik fayllar üçün middleware (front-end)
+app.use(express.static(path.join(__dirname, '.')));
 
 // PostgreSQL Pool yarat
 const pool = new Pool({
@@ -115,7 +127,7 @@ const auth = async (req, res, next) => {
 };
 
 // Admin icazəsi middleware
-const admin = (req, res, next) => {
+const admin = async (req, res, next) => {
     if (!req.user) {
         return res.status(401).json({
             success: false,
@@ -123,14 +135,28 @@ const admin = (req, res, next) => {
         });
     }
 
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({
+    // İstifadəçini yenidən bazadan götür və ən son rolu ilə yoxla
+    try {
+        const userResult = await pool.query('SELECT id, username, email, role FROM users WHERE id = $1', [req.user.id]);
+        const user = userResult.rows[0];
+        
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Giriş icazəsi yoxdur. Yalnız admin istifadəçilərə icazə verilir'
+            });
+        }
+
+        // İstifadəçi məlumatlarını req obyektinə yenilə
+        req.user = user;
+        next();
+    } catch (error) {
+        console.error('Admin icazəsi yoxlanarkən xəta:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Giriş icazəsi yoxdur. Yalnız admin istifadəçilərə icazə verilir'
+            message: 'Server xətası'
         });
     }
-
-    next();
 };
 
 // Autentifikasiya route-ları
@@ -205,7 +231,7 @@ app.post('/api/auth/login', async (req, res) => {
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
-                message: 'İstifadèçi adı və ya şifrə səhvdir'
+                message: 'İstifadəçi adı və ya şifrə səhvdir'
             });
         }
 
@@ -277,6 +303,103 @@ app.get('/api/user/profile', auth, async (req, res) => {
     }
 });
 
+// İstifadəçi profilini yenilə
+app.put('/api/user/profile', auth, async (req, res) => {
+    try {
+        const { profile } = req.body;
+        
+        // Profil məlumatlarını yenilə
+        const result = await pool.query(
+            `UPDATE users 
+             SET profile_name = $1, profile_title = $2, profile_bio = $3, 
+                 profile_location = $4, profile_phone = $5, 
+                 profile_social_linkedin = $6, profile_social_github = $7, 
+                 profile_social_twitter = $8,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $9
+             RETURNING id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter`,
+            [
+                profile.profile_name || '',
+                profile.profile_title || '',
+                profile.profile_bio || '',
+                profile.profile_location || '',
+                profile.profile_phone || '',
+                profile.profile_social_linkedin || '',
+                profile.profile_social_github || '',
+                profile.profile_social_twitter || '',
+                req.user.id
+            ]
+        );
+
+        const user = result.rows[0];
+
+        res.status(200).json({
+            success: true,
+            message: 'Profil uğurla yeniləndi',
+            user
+        });
+    } catch (error) {
+        console.error('Profil yeniləmə xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Şifrəni dəyiş
+app.put('/api/user/changepassword', auth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        // Cari istifadəçini şifrə ilə birlikdə götür
+        const userResult = await pool.query(
+            'SELECT id, password FROM users WHERE id = $1',
+            [req.user.id]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'İstifadəçi tapılmadı'
+            });
+        }
+
+        const user = userResult.rows[0];
+
+        // Cari şifrəni yoxla
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Hazırkı şifrə səhvdir'
+            });
+        }
+
+        // Yeni şifrəni hash et
+        const salt = await bcrypt.genSalt(10);
+        const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+        // Yeni şifrəni yenilə
+        await pool.query(
+            'UPDATE users SET password = $1 WHERE id = $2',
+            [hashedNewPassword, req.user.id]
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Şifrə uğurla dəyişdirildi'
+        });
+    } catch (error) {
+        console.error('Şifrə dəyişmə xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
 // Frontend üçün layihələri əldə et (giriş tələb olunmur)
 app.get('/api/projects', async (req, res) => {
     try {
@@ -334,6 +457,48 @@ app.get('/api/homepage', async (req, res) => {
         });
     } catch (error) {
         console.error('Ana səhifə məlumatı xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Bütün istifadəçiləri əldə et (yalnız admin)
+app.get('/api/admin/users', auth, admin, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');
+        
+        res.status(200).json({
+            success: true,
+            users: result.rows
+        });
+    } catch (error) {
+        console.error('İstifadəçilər xətası:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server xətası'
+        });
+    }
+});
+
+// Bütün layihələri əldə et (yalnız admin)
+app.get('/api/admin/projects', auth, admin, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
+                   p.image_url, p.project_url, u.username as user_username, u.email as user_email
+            FROM projects p
+            JOIN users u ON p.user_id = u.id
+            ORDER BY p.created_at DESC
+        `);
+
+        res.status(200).json({
+            success: true,
+            projects: result.rows
+        });
+    } catch (error) {
+        console.error('Admin layihələri xətası:', error);
         res.status(500).json({
             success: false,
             message: 'Server xətası'

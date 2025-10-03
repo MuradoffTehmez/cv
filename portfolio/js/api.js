@@ -127,6 +127,78 @@ const userAPI = {
             console.error('Profil məlumatı xətası:', error);
             return { success: false, message: 'Serverə əlaqə xətası' };
         }
+    },
+
+    // Profil məlumatlarını yenilə
+    updateProfile: async (profileData) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/user/profile`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ profile: profileData })
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Profil yeniləmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    },
+
+    // Şifrəni dəyiş
+    changePassword: async (currentPassword, newPassword) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/user/changepassword`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    currentPassword: currentPassword,
+                    newPassword: newPassword
+                })
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Şifrə dəyişmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    }
+};
+
+// Admin funksiyaları
+const adminAPI = {
+    // Bütün istifadəçiləri əldə et
+    getAllUsers: async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/users`, {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('İstifadəçilər əldə etmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
+    },
+
+    // Bütün layihələri əldə et
+    getAllProjects: async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/projects`, {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Layihələr əldə etmə xətası:', error);
+            return { success: false, message: 'Serverə əlaqə xətası' };
+        }
     }
 };
 
@@ -227,25 +299,16 @@ const frontend = {
         if (registerLink) registerLink.style.display = token ? 'none' : 'block';
         if (profileLink) profileLink.style.display = token ? 'block' : 'none';
         
+        // Admin linkini rola görə göstər
         if (adminLink) {
             if (token) {
-                // Admin statusu yoxlamaq üçün API çağırışı et
-                fetch(`${API_BASE_URL}/auth/me`, {
-                    method: 'GET',
-                    headers: getAuthHeaders()
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.user && data.user.role === 'admin') {
-                        adminLink.style.display = 'block';
-                    } else {
-                        adminLink.style.display = 'none';
-                    }
-                })
-                .catch(error => {
-                    console.error('Admin statusu alınarkən xəta:', error);
+                // İstifadəçi məlumatlarını alın və admin olub-olmadığını yoxlayın
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (user && user.role === 'admin') {
+                    adminLink.style.display = 'block';
+                } else {
                     adminLink.style.display = 'none';
-                });
+                }
             } else {
                 adminLink.style.display = 'none';
             }

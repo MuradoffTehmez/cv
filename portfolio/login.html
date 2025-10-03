@@ -87,13 +87,16 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            // Sadə login təsdiqləmə nümunəsi
-            if(username === 'admin' && password === 'password') {
-                alert('Giriş uğurludur! Xoş gəldiniz, ' + username + '!');
-                // Burada həqiqi tətbiqdə istifadəçi məlumatları saxlanan səhifəyə yönləndirmə ediləcək
-                window.location.href = 'profile.html';
-            } else {
-                alert('Yanlış istifadəçi adı və ya şifrə!');
+            try {
+                const response = await authAPI.login(username, password);
+                if (response.success) {
+                    alert('Giriş uğurludur!');
+                    window.location.href = 'profile.html';
+                } else {
+                    alert('Giriş uğursuz oldu: ' + response.message);
+                }
+            } catch (error) {
+                alert('Serverə əlaqə xətası: ' + error.message);
             }
         });
     </script>
