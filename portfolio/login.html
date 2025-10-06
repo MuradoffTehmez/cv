@@ -87,17 +87,19 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            try {
-                const response = await authAPI.login(username, password);
-                if (response.success) {
-                    alert('Giriş uğurludur!');
-                    window.location.href = 'profile.html';
-                } else {
-                    alert('Giriş uğursuz oldu: ' + response.message);
-                }
-            } catch (error) {
-                alert('Serverə əlaqə xətası: ' + error.message);
-            }
+            // Call the authAPI.login function using proper promise syntax instead of async/await in synchronous script
+            authAPI.login(username, password)
+                .then(response => {
+                    if (response.success) {
+                        alert('Giriş uğurludur!');
+                        window.location.href = 'profile.html';
+                    } else {
+                        alert('Giriş uğursuz oldu: ' + response.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Serverə əlaqə xətası: ' + error.message);
+                });
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>

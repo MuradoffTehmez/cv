@@ -33,27 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Login form submission
-document.addEventListener('DOMContentLoaded', function() {
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            // Simple validation
-            if(username === 'admin' && password === 'password') {
-                alert('Giriş uğurludur! Xoş gəldiniz, ' + username + '!');
-                // In a real application, redirect to a user dashboard
-                // window.location.href = 'dashboard.html';
-            } else {
-                alert('Yanlış istifadəçi adı və ya şifrə!');
-            }
-        });
-    }
-});
+
 
 // Close mobile menu when clicking on a link
 document.querySelectorAll('.nav-link').forEach(link => {

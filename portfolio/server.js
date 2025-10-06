@@ -608,59 +608,7 @@ app.get('/api/homepage', async (req, res) => {
     }
 });
 
-// Contact form endpoint
-app.post('/api/contact', async (req, res) => {
-    try {
-        const { name, email, subject, message } = req.body;
-        
-        // Nodemailer konfiqurasiyası
-        const nodemailer = require('nodemailer');
-        
-        const transporter = nodemailer.createTransporter({
-            host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-            port: process.env.SMTP_PORT || 587,
-            secure: false, // true for 465, false for other ports
-            auth: {
-                user: process.env.SMTP_EMAIL,
-                pass: process.env.SMTP_PASSWORD
-            }
-        });
 
-        // Email göndərmə
-        const mailOptions = {
-            from: process.env.SMTP_EMAIL,
-            to: process.env.CONTACT_EMAIL || process.env.SMTP_EMAIL,
-            subject: `Contact Form: ${subject}`,
-            text: `
-Name: ${name}
-Email: ${email}
-Subject: ${subject}
-Message: ${message}
-            `,
-            html: `
-<h2>Contact Form Message</h2>
-<p><strong>Name:</strong> ${name}</p>
-<p><strong>Email:</strong> ${email}</p>
-<p><strong>Subject:</strong> ${subject}</p>
-<p><strong>Message:</strong></p>
-<p>${message.replace(/\n/g, '<br>')}</p>
-            `
-        };
-
-        await transporter.sendMail(mailOptions);
-
-        res.status(200).json({
-            success: true,
-            message: 'Mesajınız uğurla göndərildi!'
-        });
-    } catch (error) {
-        console.error('Contact form xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Mesaj göndərilərkən xəta baş verdi'
-        });
-    }
-});
 
 // Bütün istifadəçiləri əldə et (yalnız admin) - pagination və filtering ilə
 app.get('/api/admin/users', auth, admin, async (req, res) => {
@@ -690,13 +638,17 @@ app.get('/api/admin/users', auth, admin, async (req, res) => {
             paramIndex++;
         }
         
+        // Calculate the actual parameter positions for LIMIT and OFFSET
+        const limitParamPos = queryParams.length + 1;
+        const offsetParamPos = queryParams.length + 2;
+        
         // İstifadəçiləri əldə et
         const result = await pool.query(
             `SELECT id, username, email, role, created_at 
              FROM users 
              WHERE 1=1 ${whereClause}
              ORDER BY created_at DESC
-             LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
+             LIMIT ${limitParamPos} OFFSET ${offsetParamPos}`,
             [...queryParams, limit, offset]
         );
         
@@ -759,6 +711,10 @@ app.get('/api/admin/projects', auth, admin, async (req, res) => {
             paramIndex++;
         }
         
+        // Calculate the actual parameter positions for LIMIT and OFFSET
+        const limitParamPos = queryParams.length + 1;
+        const offsetParamPos = queryParams.length + 2;
+        
         // Layihələri əldə et
         const result = await pool.query(`
             SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
@@ -767,7 +723,7 @@ app.get('/api/admin/projects', auth, admin, async (req, res) => {
             JOIN users u ON p.user_id = u.id
             WHERE 1=1 ${whereClause}
             ORDER BY p.created_at DESC
-            LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
+            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}`,
             [...queryParams, limit, offset]
         );
 
@@ -1179,6 +1135,10 @@ app.get('/api/admin/comments', auth, admin, async (req, res) => {
             paramIndex++;
         }
         
+        // Calculate the actual parameter positions for LIMIT and OFFSET
+        const limitParamPos = queryParams.length + 1;
+        const offsetParamPos = queryParams.length + 2;
+        
         // Rəyləri əldə edirik
         const result = await pool.query(`
             SELECT c.id, c.content, c.status, c.created_at, c.updated_at,
@@ -1188,7 +1148,7 @@ app.get('/api/admin/comments', auth, admin, async (req, res) => {
             JOIN posts p ON c.post_id = p.id
             WHERE 1=1 ${whereClause}
             ORDER BY c.created_at DESC
-            LIMIT ${paramIndex} OFFSET ${paramIndex + 1}
+            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}
         `, [...queryParams, limit, offset]);
         
         // Ümumi say
@@ -1309,13 +1269,17 @@ app.get('/api/admin/messages', auth, admin, async (req, res) => {
             paramIndex++;
         }
         
+        // Calculate the actual parameter positions for LIMIT and OFFSET
+        const limitParamPos = queryParams.length + 1;
+        const offsetParamPos = queryParams.length + 2;
+        
         // Mesajları əldə edirik
         const result = await pool.query(`
             SELECT m.id, m.name, m.email, m.subject, m.message, m.is_read, m.created_at
             FROM messages m
             WHERE 1=1 ${whereClause}
             ORDER BY m.created_at DESC
-            LIMIT ${paramIndex} OFFSET ${paramIndex + 1}
+            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}
         `, [...queryParams, limit, offset]);
         
         // Ümumi say
