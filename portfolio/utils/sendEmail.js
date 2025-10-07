@@ -1,21 +1,31 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-    const transporter = nodemailer.createTransporter({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        secure: false, // true for 465, false for other ports
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = Number(process.env.SMTP_PORT);
+    const smtpUser = process.env.SMTP_EMAIL;
+    const smtpPass = process.env.SMTP_PASSWORD;
+
+    if (!smtpHost || Number.isNaN(smtpPort) || !smtpUser || !smtpPass) {
+        throw new Error('SMTP configuration is incomplete.');
+    }
+
+    const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
         auth: {
-            user: process.env.SMTP_EMAIL, // generated ethereal user
-            pass: process.env.SMTP_PASSWORD, // generated ethereal password
+            user: smtpUser,
+            pass: smtpPass,
         },
     });
 
     const message = {
-        from: process.env.SMTP_EMAIL,
+        from: smtpUser,
         to: options.email,
         subject: options.subject,
         text: options.message,
+        ...(options.html ? { html: options.html } : {}),
     };
 
     await transporter.sendMail(message);

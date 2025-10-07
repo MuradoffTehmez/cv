@@ -1,14 +1,16 @@
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
 const multer = require('multer');
 const fs = require('fs');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const nodemailer = require('nodemailer');
+
+const { auth, admin } = require('./middleware/auth');
+const authRoutes = require('./routes/auth');
 
 dotenv.config();
 
@@ -16,29 +18,6 @@ const app = express();
 
 // Helmet ilə security header-ləri əlavə et
 app.use(helmet());
-
-// Rate limiting konfiqurasiyası
-const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 dəqiqə
-    max: 5, // Hər IP-dən 15 dəqiqə ərzində maksimum 5 dəfə
-    message: {
-        success: false,
-        message: 'Çox sayda giriş cəhdi. 15 dəqiqə sonra yenidən cəhd edin.'
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const registerLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 dəqiqə
-    max: 3, // Hər IP-dən 15 dəqiqə ərzində maksimum 3 dəfə
-    message: {
-        success: false,
-        message: 'Çox sayda qeydiyyat cəhdi. 15 dəqiqə sonra yenidən cəhd edin.'
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
 
 // CORS tənzimləmələri
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'];
@@ -54,8 +33,59 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Statik fayllar üçün middleware (front-end)
-app.use(express.static(path.join(__dirname, '.')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const staticOptions = {
+    index: false,
+    dotfiles: 'ignore',
+    maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+    setHeaders: (res, servedPath) => {
+        if (servedPath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-store');
+        }
+    },
+};
+
+['css', 'images', 'js'].forEach((dir) => {
+    app.use(`/${dir}`, express.static(path.join(__dirname, dir), staticOptions));
+});
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+    index: false,
+    dotfiles: 'ignore',
+}));
+
+app.use('/api/auth', authRoutes);
+
+const allowedStaticFiles = {
+    '/': 'index.html',
+    '/index.html': 'index.html',
+    '/about.html': 'about.html',
+    '/projects.html': 'projects.html',
+    '/project-detail.html': 'project-detail.html',
+    '/contact.html': 'contact.html',
+    '/profile.html': 'profile.html',
+    '/login.html': 'login.html',
+    '/register.html': 'register.html',
+    '/forgot-password.html': 'forgot-password.html',
+    '/admin.html': 'admin.html',
+    '/blog.html': 'blog.html',
+    '/post-detail.html': 'post-detail.html',
+    '/manifest.json': 'manifest.json',
+};
+
+app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+        return next();
+    }
+
+    const normalizedPath = req.path === '/' ? '/' : req.path;
+    const targetFile = allowedStaticFiles[normalizedPath] || allowedStaticFiles[`${normalizedPath}.html`];
+
+    if (targetFile) {
+        return res.sendFile(path.join(__dirname, targetFile));
+    }
+
+    return next();
+});
 
 // Şəkilləri saxlamaq üçün uploads qovluğu yarat
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -189,209 +219,20 @@ const createTables = async () => {
                 subject VARCHAR(200) NOT NULL,
                 message TEXT NOT NULL,
                 is_read BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        await pool.query(
+            'ALTER TABLE messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+        );
 
         console.log('Cədvəllər uğurla yaradıldı');
     } catch (err) {
         console.error('Cədvəl yaratma xətası:', err);
     }
 };
-
-// JWT token yarat
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE,
-    });
-};
-
-// Giriş icazəsi middleware
-const auth = async (req, res, next) => {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        try {
-            // Tokeni götür
-            token = req.headers.authorization.split(' ')[1];
-
-            // Tokeni doğrula
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-            // İstifadəçini token-dən götür
-            const userResult = await pool.query('SELECT id, username, email, role FROM users WHERE id = $1', [decoded.id]);
-            req.user = userResult.rows[0];
-
-            next();
-        } catch (error) {
-            return res.status(401).json({
-                success: false,
-                message: 'Giriş icazəsi yoxdur'
-            });
-        }
-    }
-
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            message: 'Giriş icazəsi yoxdur, zəhmət olmasa token daxil edin'
-        });
-    }
-};
-
-// Admin icazəsi middleware
-const admin = async (req, res, next) => {
-    if (!req.user) {
-        return res.status(401).json({
-            success: false,
-            message: 'Giriş icazəsi yoxdur'
-        });
-    }
-
-    // İstifadəçini yenidən bazadan götür və ən son rolu ilə yoxla
-    try {
-        const userResult = await pool.query('SELECT id, username, email, role FROM users WHERE id = $1', [req.user.id]);
-        const user = userResult.rows[0];
-        
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Giriş icazəsi yoxdur. Yalnız admin istifadəçilərə icazə verilir'
-            });
-        }
-
-        // İstifadəçi məlumatlarını req obyektinə yenilə
-        req.user = user;
-        next();
-    } catch (error) {
-        console.error('Admin icazəsi yoxlanarkən xəta:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
-};
-
-// Autentifikasiya route-ları
-app.post('/api/auth/register', registerLimiter, async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-
-        // Şifrəni hash et
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Yeni istifadəçi yarat
-        const result = await pool.query(
-            `INSERT INTO users (username, email, password) 
-             VALUES ($1, $2, $3) 
-             RETURNING id, username, email, role`,
-            [username, email, hashedPassword]
-        );
-
-        const user = result.rows[0];
-        const token = generateToken(user.id);
-
-        res.status(201).json({
-            success: true,
-            message: 'İstifadəçi uğurla qeydiyyatdan keçdi',
-            token,
-            user
-        });
-    } catch (error) {
-        console.error('Qeydiyyat xətası:', error);
-        if (error.constraint && error.constraint.includes('users_username_key')) {
-            return res.status(400).json({
-                success: false,
-                message: 'Bu istifadəçi adı artıq mövcuddur'
-            });
-        }
-        if (error.constraint && error.constraint.includes('users_email_key')) {
-            return res.status(400).json({
-                success: false,
-                message: 'Bu email artıq mövcuddur'
-            });
-        }
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
-});
-
-app.post('/api/auth/login', loginLimiter, async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        // İstifadəçini tap
-        const result = await pool.query(
-            'SELECT id, username, email, password, role FROM users WHERE username = $1 OR email = $1',
-            [username]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(401).json({
-                success: false,
-                message: 'İstifadəçi adı və ya şifrə səhvdir'
-            });
-        }
-
-        const user = result.rows[0];
-
-        // Şifrəni yoxla
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'İstifadəçi adı və ya şifrə səhvdir'
-            });
-        }
-
-        // Token yarat
-        const token = generateToken(user.id);
-
-        res.status(200).json({
-            success: true,
-            message: 'Giriş uğurludur',
-            token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: user.role
-            }
-        });
-    } catch (error) {
-        console.error('Giriş xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
-});
-
-app.get('/api/auth/me', auth, async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT id, username, email, role, profile_name, profile_title, profile_bio, profile_location, profile_phone, profile_avatar, profile_social_linkedin, profile_social_github, profile_social_twitter FROM users WHERE id = $1',
-            [req.user.id]
-        );
-
-        const user = result.rows[0];
-
-        res.status(200).json({
-            success: true,
-            user
-        });
-    } catch (error) {
-        console.error('İstifadəçi məlumatı xətası:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
-});
 
 // İstifadəçi route-ları
 app.get('/api/user/profile', auth, async (req, res) => {
@@ -402,7 +243,6 @@ app.get('/api/user/profile', auth, async (req, res) => {
         );
 
         const user = result.rows[0];
-
         res.status(200).json({
             success: true,
             user
@@ -445,7 +285,6 @@ app.put('/api/user/profile', auth, async (req, res) => {
         );
 
         const user = result.rows[0];
-
         res.status(200).json({
             success: true,
             message: 'Profil uğurla yeniləndi',
@@ -499,7 +338,6 @@ app.put('/api/user/changepassword', auth, async (req, res) => {
             'UPDATE users SET password = $1 WHERE id = $2',
             [hashedNewPassword, req.user.id]
         );
-
         res.status(200).json({
             success: true,
             message: 'Şifrə uğurla dəyişdirildi'
@@ -529,7 +367,6 @@ app.put('/api/user/avatar', auth, upload.single('avatar'), async (req, res) => {
             'UPDATE users SET profile_avatar = $1 WHERE id = $2',
             [avatarPath, req.user.id]
         );
-
         res.status(200).json({
             success: true,
             message: 'Profil şəkli uğurla yeniləndi',
@@ -556,7 +393,6 @@ app.get('/api/projects', async (req, res) => {
         `);
 
         const projects = result.rows;
-
         res.status(200).json({
             success: true,
             projects
@@ -594,7 +430,6 @@ app.get('/api/homepage', async (req, res) => {
             recentProjects: projectsResult.rows,
             stats: statsResult.rows[0]
         };
-
         res.status(200).json({
             success: true,
             data: homepageData
@@ -617,72 +452,57 @@ app.get('/api/admin/users', auth, admin, async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || '';
         const role = req.query.role || '';
-        
-        // Offset hesabla
         const offset = (page - 1) * limit;
-        
-        // SQL sorğusu üçün WHERE şərtləri
         let whereClause = '';
         const queryParams = [];
         let paramIndex = 1;
-        
         if (search) {
-            whereClause += ` AND (username ILIKE ${paramIndex} OR email ILIKE ${paramIndex})`;
+            whereClause += ` AND (username ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
             queryParams.push(`%${search}%`);
-            paramIndex++;
+            paramIndex += 1;
         }
-        
         if (role) {
-            whereClause += ` AND role = ${paramIndex}`;
+            whereClause += ` AND role = $${paramIndex}`;
             queryParams.push(role);
-            paramIndex++;
+            paramIndex += 1;
         }
-        
-        // Calculate the actual parameter positions for LIMIT and OFFSET
         const limitParamPos = queryParams.length + 1;
         const offsetParamPos = queryParams.length + 2;
-        
-        // İstifadəçiləri əldə et
         const result = await pool.query(
-            `SELECT id, username, email, role, created_at 
-             FROM users 
+            `SELECT id, username, email, role, created_at
+             FROM users
              WHERE 1=1 ${whereClause}
              ORDER BY created_at DESC
-             LIMIT ${limitParamPos} OFFSET ${offsetParamPos}`,
+             LIMIT $${limitParamPos} OFFSET $${offsetParamPos}`,
             [...queryParams, limit, offset]
         );
-        
-        // Ümumi sayı əldə et
         const countResult = await pool.query(
-            `SELECT COUNT(*) as total 
-             FROM users 
+            `SELECT COUNT(*) as total
+             FROM users
              WHERE 1=1 ${whereClause}`,
             queryParams
         );
-        
-        const total = parseInt(countResult.rows[0].total);
-        const totalPages = Math.ceil(total / limit);
-        
+        const total = parseInt(countResult.rows[0].total, 10);
+        const totalPages = Math.max(Math.ceil(total / limit), 1);
         res.status(200).json({
             success: true,
             users: result.rows,
             pagination: {
                 currentPage: page,
-                totalPages: totalPages,
+                totalPages,
                 totalUsers: total,
                 hasNextPage: page < totalPages,
-                hasPrevPage: page > 1
-            }
+                hasPrevPage: page > 1,
+            },
         });
     } catch (error) {
         console.error('İstifadəçilər xətası:', error);
         res.status(500).json({
             success: false,
-            message: 'Server xətası'
+            message: 'Server xətası',
         });
     }
 });
-
 // Bütün layihələri əldə et (yalnız admin) - pagination və filtering ilə
 app.get('/api/admin/projects', auth, admin, async (req, res) => {
     try {
@@ -690,75 +510,60 @@ app.get('/api/admin/projects', auth, admin, async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || '';
         const status = req.query.status || '';
-        
-        // Offset hesabla
         const offset = (page - 1) * limit;
-        
-        // SQL sorğusu üçün WHERE şərtləri
         let whereClause = '';
         const queryParams = [];
         let paramIndex = 1;
-        
         if (search) {
-            whereClause += ` AND (p.title ILIKE ${paramIndex} OR p.description ILIKE ${paramIndex})`;
+            whereClause += ` AND (p.title ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
             queryParams.push(`%${search}%`);
-            paramIndex++;
+            paramIndex += 1;
         }
-        
         if (status) {
-            whereClause += ` AND p.status = ${paramIndex}`;
+            whereClause += ` AND p.status = $${paramIndex}`;
             queryParams.push(status);
-            paramIndex++;
+            paramIndex += 1;
         }
-        
-        // Calculate the actual parameter positions for LIMIT and OFFSET
         const limitParamPos = queryParams.length + 1;
         const offsetParamPos = queryParams.length + 2;
-        
-        // Layihələri əldə et
-        const result = await pool.query(`
-            SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
-                   p.image_url, p.project_url, u.username as user_username, u.email as user_email
-            FROM projects p
-            JOIN users u ON p.user_id = u.id
-            WHERE 1=1 ${whereClause}
-            ORDER BY p.created_at DESC
-            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}`,
+        const result = await pool.query(
+            `SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status,
+                    p.image_url, p.project_url, u.username as user_username, u.email as user_email
+             FROM projects p
+             JOIN users u ON p.user_id = u.id
+             WHERE 1=1 ${whereClause}
+             ORDER BY p.created_at DESC
+             LIMIT $${limitParamPos} OFFSET $${offsetParamPos}`,
             [...queryParams, limit, offset]
         );
-
-        // Ümumi sayı əldə et
         const countResult = await pool.query(
-            `SELECT COUNT(*) as total 
+            `SELECT COUNT(*) as total
              FROM projects p
              JOIN users u ON p.user_id = u.id
              WHERE 1=1 ${whereClause}`,
             queryParams
         );
-        
-        const total = parseInt(countResult.rows[0].total);
-        const totalPages = Math.ceil(total / limit);
-        
+        const total = parseInt(countResult.rows[0].total, 10);
+        const totalPages = Math.max(Math.ceil(total / limit), 1);
         res.status(200).json({
             success: true,
             projects: result.rows,
             pagination: {
                 currentPage: page,
-                totalPages: totalPages,
+                totalPages,
                 totalProjects: total,
                 hasNextPage: page < totalPages,
-                hasPrevPage: page > 1
-            }
+                hasPrevPage: page > 1,
+            },
         });
     } catch (error) {
         console.error('Admin layihələri xətası:', error);
         res.status(500).json({
             success: false,
-            message: 'Server xətası'
+            message: 'Server xətası',
         });
     }
 });
-
 // BLOQ MƏQALƏLƏRİ API ENDPOINT'LƏRİ
 // Bütün məqalələri əldə et (statusu published olanlar)
 app.get('/api/posts', async (req, res) => {
@@ -785,8 +590,8 @@ app.get('/api/posts', async (req, res) => {
             WHERE status = 'published'
         `);
         
-        const total = parseInt(countResult.rows[0].total);
-        const totalPages = Math.ceil(total / limit);
+        const total = parseInt(countResult.rows[0].total, 10);
+        const totalPages = Math.max(Math.ceil(total / limit), 1);
         
         res.status(200).json({
             success: true,
@@ -819,7 +624,7 @@ app.get('/api/posts/:slug', async (req, res) => {
                    u.username as author_username, u.profile_avatar as author_avatar
             FROM posts p
             JOIN users u ON p.user_id = u.id
-            WHERE p.slug = $1 AND p.status = 'published'
+            WHERE p.slug = $1 AND p.status = {paramIndex}'published'
         `, [slug]);
         
         if (result.rows.length === 0) {
@@ -1059,20 +864,25 @@ app.post('/api/contact', async (req, res) => {
         `, [name, email, subject, message]);
         
         // Əgər konfiqurasiya varsa, email göndərilir
-        if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
-            const nodemailer = require('nodemailer');
-            
-            const transporter = nodemailer.createTransporter({
-                host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-                port: process.env.SMTP_PORT || 587,
-                secure: false, // true for 465, false for other ports
+        const smtpHost = process.env.SMTP_HOST;
+        const smtpPort = Number(process.env.SMTP_PORT);
+
+        if (
+            process.env.SMTP_EMAIL &&
+            process.env.SMTP_PASSWORD &&
+            smtpHost &&
+            !Number.isNaN(smtpPort)
+        ) {
+            const transporter = nodemailer.createTransport({
+                host: smtpHost,
+                port: smtpPort,
+                secure: smtpPort === 465,
                 auth: {
                     user: process.env.SMTP_EMAIL,
-                    pass: process.env.SMTP_PASSWORD
-                }
+                    pass: process.env.SMTP_PASSWORD,
+                },
             });
 
-            // Email göndərmə
             const mailOptions = {
                 from: process.env.SMTP_EMAIL,
                 to: process.env.CONTACT_EMAIL || process.env.SMTP_EMAIL,
@@ -1090,12 +900,14 @@ Message: ${message}
 <p><strong>Subject:</strong> ${subject}</p>
 <p><strong>Message:</strong></p>
 <p>${message.replace(/\n/g, '<br>')}</p>
-                `
+                `,
             };
 
             await transporter.sendMail(mailOptions);
+        } else {
+            console.warn('SMTP configuration is incomplete; contact form email not sent.');
         }
-        
+
         res.status(200).json({
             success: true,
             message: 'Mesajınız uğurla göndərildi!'
@@ -1118,71 +930,61 @@ app.get('/api/admin/comments', auth, admin, async (req, res) => {
         const status = req.query.status || '';
         const search = req.query.search || '';
         const offset = (page - 1) * limit;
-        
         let whereClause = '';
         const queryParams = [];
         let paramIndex = 1;
-        
         if (status) {
-            whereClause += ` AND c.status = ${paramIndex} `;
+            whereClause += ` AND c.status = $${paramIndex}`;
             queryParams.push(status);
-            paramIndex++;
+            paramIndex += 1;
         }
-        
         if (search) {
-            whereClause += ` AND (c.content ILIKE ${paramIndex} OR u.username ILIKE ${paramIndex}) `;
+            whereClause += ` AND (c.content ILIKE $${paramIndex} OR u.username ILIKE $${paramIndex})`;
             queryParams.push(`%${search}%`);
-            paramIndex++;
+            paramIndex += 1;
         }
-        
-        // Calculate the actual parameter positions for LIMIT and OFFSET
         const limitParamPos = queryParams.length + 1;
         const offsetParamPos = queryParams.length + 2;
-        
-        // Rəyləri əldə edirik
-        const result = await pool.query(`
-            SELECT c.id, c.content, c.status, c.created_at, c.updated_at,
-                   u.username as user_username, p.title as post_title, p.slug as post_slug
-            FROM comments c
-            JOIN users u ON c.user_id = u.id
-            JOIN posts p ON c.post_id = p.id
-            WHERE 1=1 ${whereClause}
-            ORDER BY c.created_at DESC
-            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}
-        `, [...queryParams, limit, offset]);
-        
-        // Ümumi say
-        const countResult = await pool.query(`
-            SELECT COUNT(*) as total
-            FROM comments c
-            JOIN users u ON c.user_id = u.id
-            JOIN posts p ON c.post_id = p.id
-            WHERE 1=1 ${whereClause}
-        `, queryParams);
-        
-        const total = parseInt(countResult.rows[0].total);
-        const totalPages = Math.ceil(total / limit);
-        
+        const result = await pool.query(
+            `SELECT c.id, c.content, c.status, c.created_at, c.updated_at,
+                    u.username as user_username, p.title as post_title, p.slug as post_slug
+             FROM comments c
+             JOIN users u ON c.user_id = u.id
+             JOIN posts p ON c.post_id = p.id
+             WHERE 1=1 ${whereClause}
+             ORDER BY c.created_at DESC
+             LIMIT $${limitParamPos} OFFSET $${offsetParamPos}`,
+            [...queryParams, limit, offset]
+        );
+        const countResult = await pool.query(
+            `SELECT COUNT(*) as total
+             FROM comments c
+             JOIN users u ON c.user_id = u.id
+             JOIN posts p ON c.post_id = p.id
+             WHERE 1=1 ${whereClause}`,
+            queryParams
+        );
+        const total = parseInt(countResult.rows[0].total, 10);
+        const totalPages = Math.max(Math.ceil(total / limit), 1);
         res.status(200).json({
             success: true,
             comments: result.rows,
             pagination: {
                 currentPage: page,
-                totalPages: totalPages,
+                totalPages,
                 totalComments: total,
                 hasNextPage: page < totalPages,
-                hasPrevPage: page > 1
-            }
+                hasPrevPage: page > 1,
+            },
         });
     } catch (error) {
         console.error('Rəylər alınarkən xəta:', error);
         res.status(500).json({
             success: false,
-            message: 'Server xətası'
+            message: 'Server xətası',
         });
     }
 });
-
 // Rəy statusunu dəyiş (yalnız admin)
 app.put('/api/admin/comments/:id', auth, admin, async (req, res) => {
     try {
@@ -1249,69 +1051,59 @@ app.get('/api/admin/messages', auth, admin, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
-        const is_read = req.query.is_read;
+        const isRead = req.query.is_read;
         const search = req.query.search || '';
         const offset = (page - 1) * limit;
-        
         let whereClause = '';
         const queryParams = [];
         let paramIndex = 1;
-        
-        if (is_read !== undefined) {
-            whereClause += ` AND m.is_read = ${paramIndex} `;
-            queryParams.push(is_read === 'true');
-            paramIndex++;
+        if (isRead !== undefined) {
+            whereClause += ` AND m.is_read = $${paramIndex} `;
+            queryParams.push(isRead === 'true');
+            paramIndex += 1;
         }
-        
         if (search) {
-            whereClause += ` AND (m.name ILIKE ${paramIndex} OR m.email ILIKE ${paramIndex} OR m.subject ILIKE ${paramIndex} OR m.message ILIKE ${paramIndex}) `;
+            whereClause += ` AND (m.name ILIKE $${paramIndex} OR m.email ILIKE $${paramIndex} OR m.subject ILIKE $${paramIndex} OR m.message ILIKE $${paramIndex}) `;
             queryParams.push(`%${search}%`);
-            paramIndex++;
+            paramIndex += 1;
         }
-        
-        // Calculate the actual parameter positions for LIMIT and OFFSET
         const limitParamPos = queryParams.length + 1;
         const offsetParamPos = queryParams.length + 2;
-        
-        // Mesajları əldə edirik
-        const result = await pool.query(`
-            SELECT m.id, m.name, m.email, m.subject, m.message, m.is_read, m.created_at
-            FROM messages m
-            WHERE 1=1 ${whereClause}
-            ORDER BY m.created_at DESC
-            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}
-        `, [...queryParams, limit, offset]);
-        
-        // Ümumi say
-        const countResult = await pool.query(`
-            SELECT COUNT(*) as total
-            FROM messages m
-            WHERE 1=1 ${whereClause}
-        `, queryParams);
-        
-        const total = parseInt(countResult.rows[0].total);
-        const totalPages = Math.ceil(total / limit);
-        
+        const result = await pool.query(
+            `SELECT m.id, m.name, m.email, m.subject, m.message, m.is_read, m.created_at
+             FROM messages m
+             WHERE 1=1 ${whereClause}
+             ORDER BY m.created_at DESC
+             LIMIT $${limitParamPos} OFFSET $${offsetParamPos}`,
+            [...queryParams, limit, offset]
+        );
+        const countResult = await pool.query(
+            `SELECT COUNT(*) as total
+             FROM messages m
+             WHERE 1=1 ${whereClause}`,
+            queryParams
+        );
+        const total = parseInt(countResult.rows[0].total, 10);
+        const totalPages = Math.max(Math.ceil(total / limit), 1);
         res.status(200).json({
             success: true,
             messages: result.rows,
             pagination: {
                 currentPage: page,
-                totalPages: totalPages,
+                totalPages,
                 totalMessages: total,
                 hasNextPage: page < totalPages,
-                hasPrevPage: page > 1
-            }
+                hasPrevPage: page > 1,
+            },
         });
     } catch (error) {
         console.error('Mesajlar alınarkən xəta:', error);
         res.status(500).json({
             success: false,
-            message: 'Server xətası'
+            message: 'Server xətası',
         });
     }
 });
-
 // Əlaqə mesajı oxunub/oxunmayıb statusunu dəyiş (yalnız admin)
 app.put('/api/admin/messages/:id', auth, admin, async (req, res) => {
     try {

@@ -1,0 +1,5 @@
+[2025-10-07 19:45:53Z] Updated server.js: tightened static file serving, added nodemailer import, parameterized admin queries, ensured pagination safety, and aligned messages schema with updated_at column.
+[2025-10-07 19:45:53Z] Updated utils/sendEmail.js: corrected transporter API and enforced explicit SMTP configuration.
+[2025-10-07 19:45:53Z] Replaced legacy Mongo route modules with placeholders to reflect PostgreSQL backend (routes/auth.js, routes/admin.js, routes/project.js, routes/user.js).
+[2025-10-07 19:45:53Z] Rewrote middleware/auth.js to verify JWTs against PostgreSQL instead of removed Mongo models.
+[2025-10-07 19:45:53Z] Logged verification via node --check for server.js and utils/sendEmail.js.

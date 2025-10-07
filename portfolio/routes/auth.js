@@ -1,292 +1,378 @@
 const express = require('express');
-const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const { Pool } = require('pg');
+const rateLimit = require('express-rate-limit');
+const dotenv = require('dotenv');
+
 const sendEmail = require('../utils/sendEmail');
-const generateToken = require('../utils/generateToken');
 const { auth } = require('../middleware/auth');
+
+dotenv.config();
 
 const router = express.Router();
 
-// @desc    İstifadəçi qeydiyyatı
-// @route   POST /api/auth/register
-// @access  Public
-router.post('/register', [
-    body('username')
-        .isLength({ min: 3 })
-        .withMessage('İstifadəçi adı ən azı 3 simvol uzunluğunda olmalıdır')
-        .isAlphanumeric()
-        .withMessage('İstifadəçi adı yalnız hərflər və rəqəmlər ola bilər'),
-    body('email')
-        .isEmail()
-        .withMessage('Zəhmət olmasa düzgün email ünvanı daxil edin')
-        .normalizeEmail(),
-    body('password')
-        .isLength({ min: 6 })
-        .withMessage('Şifrə ən azı 6 simvol uzunluğunda olmalıdır')
-], async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
+const pool = new Pool({
+    user: process.env.DB_USER || 'postgres',
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'portfolio',
+    password: process.env.DB_PASSWORD || 'password',
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432,
+});
+
+const USER_FIELDS = [
+    'id',
+    'username',
+    'email',
+    'role',
+    'profile_name',
+    'profile_title',
+    'profile_bio',
+    'profile_location',
+    'profile_phone',
+    'profile_avatar',
+    'profile_social_linkedin',
+    'profile_social_github',
+    'profile_social_twitter',
+];
+
+const DEFAULT_WINDOW_MS = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+
+const createLimiter = (max, message) => rateLimit({
+    windowMs: DEFAULT_WINDOW_MS,
+    max,
+    message: {
+        success: false,
+        message,
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const loginLimiter = createLimiter(
+    Number(process.env.LOGIN_RATE_LIMIT_MAX) || 5,
+    'Çox sayda giriş cəhdi. 15 dəqiqə sonra yenidən cəhd edin.'
+);
+
+const registerLimiter = createLimiter(
+    Number(process.env.REGISTER_RATE_LIMIT_MAX) || 3,
+    'Çox sayda qeydiyyat cəhdi. 15 dəqiqə sonra yenidən cəhd edin.'
+);
+
+const forgotPasswordLimiter = createLimiter(
+    Number(process.env.FORGOT_PASSWORD_RATE_LIMIT_MAX) || 3,
+    'Çox sayda şifrə sıfırlama cəhdi. Zəhmət olmasa daha sonra cəhd edin.'
+);
+
+const sanitizeUser = (user) => {
+    const result = {};
+    USER_FIELDS.forEach((field) => {
+        result[field] = user[field] ?? null;
+    });
+    return result;
+};
+
+const isValidEmail = (email) => /^[\w-.]+@([\w-]+\.)+[\w-]{2,}$/.test(String(email).trim());
+
+const isStrongPassword = (password) => typeof password === 'string' && password.trim().length >= 8;
+
+const generateToken = (userId) => {
+    if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET is not configured.');
+    }
+
+    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE || '7d',
+    });
+};
+
+const hashPassword = async (plainPassword) => {
+    const salt = await bcrypt.genSalt(10);
+    return bcrypt.hash(plainPassword, salt);
+};
+
+const buildResetToken = () => {
+    const raw = crypto.randomBytes(20).toString('hex');
+    const hashed = crypto.createHash('sha256').update(raw).digest('hex');
+    const expires = new Date(Date.now() + (Number(process.env.RESET_TOKEN_EXPIRE_MS) || 10 * 60 * 1000));
+
+    return { raw, hashed, expires };
+};
+
+const respondWithAuthSuccess = (res, statusCode, message, user) => {
+    const token = generateToken(user.id);
+    res.status(statusCode).json({
+        success: true,
+        message,
+        token,
+        user: sanitizeUser(user),
+    });
+};
+
+const handlePgError = (error, res) => {
+    if (error && error.code === '23505') {
+        if (error.constraint && error.constraint.includes('users_username_key')) {
             return res.status(400).json({
                 success: false,
-                message: 'Xəta',
-                errors: errors.array()
+                message: 'Bu istifadəçi adı artıq mövcuddur.',
             });
         }
+        if (error.constraint && error.constraint.includes('users_email_key')) {
+            return res.status(400).json({
+                success: false,
+                message: 'Bu email artıq mövcuddur.',
+            });
+        }
+    }
 
+    console.error('PostgreSQL xətası:', error);
+    return res.status(500).json({
+        success: false,
+        message: 'Server xətası',
+    });
+};
+
+const buildUserSelectQuery = (additional = '') => `SELECT ${USER_FIELDS.join(', ')}${additional} FROM users`;
+
+router.post('/register', registerLimiter, async (req, res) => {
+    try {
         const { username, email, password } = req.body;
 
-        // Eyni istifadəçi adı və ya email ilə istifadəçinin olub-olmamasını yoxla
-        const existingUser = await User.findOne({
-            $or: [{ email }, { username }]
-        });
-
-        if (existingUser) {
+        if (!username || !email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Bu email və ya istifadəçi adı artıq mövcuddur'
+                message: 'İstifadəçi adı, email və şifrə tələb olunur.',
             });
         }
 
-        // Yeni istifadəçi yarat
-        const user = await User.create({
-            username,
-            email,
-            password
-        });
+        if (!isValidEmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Düzgün email daxil edin.',
+            });
+        }
 
-        // Token yarat
-        const token = generateToken(user._id);
+        if (!isStrongPassword(password)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Şifrə ən azı 8 simvoldan ibarət olmalıdır.',
+            });
+        }
 
-        res.status(201).json({
-            success: true,
-            message: 'İstifadəçi uğurla qeydiyyatdan keçdi',
-            token,
-            user: {
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                role: user.role
-            }
-        });
+        const normalizedUsername = username.trim();
+        const normalizedEmail = email.trim().toLowerCase();
+        const hashedPassword = await hashPassword(password);
+
+        const result = await pool.query(
+            `INSERT INTO users (username, email, password)
+             VALUES ($1, $2, $3)
+             RETURNING ${USER_FIELDS.join(', ')}`,
+            [normalizedUsername, normalizedEmail, hashedPassword]
+        );
+
+        respondWithAuthSuccess(res, 201, 'İstifadəçi uğurla qeydiyyatdan keçdi', result.rows[0]);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
+        return handlePgError(error, res);
     }
 });
 
-// @desc    İstifadəçi girişi
-// @route   POST /api/auth/login
-// @access  Public
-router.post('/login', [
-    body('username')
-        .notEmpty()
-        .withMessage('İstifadəçi adı tələb olunur'),
-    body('password')
-        .notEmpty()
-        .withMessage('Şifrə tələb olunur')
-], async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
     try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
+        const identifier = (req.body.username || req.body.email || '').trim();
+        const { password } = req.body;
+
+        if (!identifier || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Xəta',
-                errors: errors.array()
+                message: 'İstifadəçi adı/email və şifrə tələb olunur.',
             });
         }
 
-        const { username, password } = req.body;
+        const result = await pool.query(
+            `${buildUserSelectQuery(', password')} WHERE username = $1 OR LOWER(email) = LOWER($1)`,
+            [identifier]
+        );
 
-        // İstifadəçini username və ya email üzrə tap
-        const user = await User.findOne({
-            $or: [{ username }, { email: username }]
-        }).select('+password');
-
-        if (!user) {
+        if (result.rows.length === 0) {
             return res.status(401).json({
                 success: false,
-                message: 'İstifadəçi adı və ya şifrə səhvdir'
+                message: 'İstifadəçi adı və ya şifrə səhvdir.',
             });
         }
 
-        // Şifrəni yoxla
-        const isMatch = await user.matchPassword(password);
+        const user = result.rows[0];
+        const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
-                message: 'İstifadəçi adı və ya şifrə səhvdir'
+                message: 'İstifadəçi adı və ya şifrə səhvdir.',
             });
         }
 
-        // Token yarat
-        const token = generateToken(user._id);
-
-        res.status(200).json({
-            success: true,
-            message: 'Giriş uğurludur',
-            token,
-            user: {
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                role: user.role
-            }
-        });
+        const { password: _, ...userWithoutPassword } = user;
+        respondWithAuthSuccess(res, 200, 'Giriş uğurludur', userWithoutPassword);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
+        console.error('Giriş xətası:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Server xətası'
+            message: 'Server xətası',
         });
     }
 });
 
-// @desc    Şifrə sıfırlama token-i yarat
-// @route   POST /api/auth/forgotpassword
-// @access  Public
-router.post('/forgotpassword', [
-    body('email')
-        .isEmail()
-        .withMessage('Zəhmət olmasa düzgün email ünvanı daxil edin')
-], async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({
-                success: false,
-                message: 'Xəta',
-                errors: errors.array()
-            });
-        }
-
-        const user = await User.findOne({ email: req.body.email });
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'Bu email ünvanına aid istifadəçi tapılmadı'
-            });
-        }
-
-        // Şifrə sıfırlama token-i yarat
-        const resetToken = crypto.randomBytes(20).toString('hex');
-
-        // Token-i hash et və expire vaxtını saxla
-        user.resetPasswordToken = crypto
-            .createHash('sha256')
-            .update(resetToken)
-            .digest('hex');
-        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 dəqiqə
-
-        await user.save({ validateBeforeSave: false });
-
-        try {
-            const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/resetpassword/${resetToken}`;
-
-            const message = `Şifrənizi sıfırlamaq üçün aşağıdakı linkə keçid edin:\n\n${resetUrl}\n\nBu link 10 dəqiqə sonra etibarsız olacaq.`;
-
-            await sendEmail({
-                email: user.email,
-                subject: 'Şifrə Sıfırlama',
-                message
-            });
-
-            res.status(200).json({
-                success: true,
-                message: 'Email şifrə sıfırlama linki ilə göndərildi'
-            });
-        } catch (err) {
-            console.error(err);
-            user.resetPasswordToken = undefined;
-            user.resetPasswordExpire = undefined;
-
-            await user.save({ validateBeforeSave: false });
-
-            return res.status(500).json({
-                success: false,
-                message: 'Email göndərmə xətası'
-            });
-        }
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
-});
-
-// @desc    Şifrəni sıfırla
-// @route   PUT /api/auth/resetpassword/:resettoken
-// @access  Public
-router.put('/resetpassword/:resettoken', async (req, res) => {
-    try {
-        // Token-i hash et
-        const resetPasswordToken = crypto
-            .createHash('sha256')
-            .update(req.params.resettoken)
-            .digest('hex');
-
-        const user = await User.findOne({
-            resetPasswordToken,
-            resetPasswordExpire: { $gt: Date.now() }
-        });
-
-        if (!user) {
-            return res.status(400).json({
-                success: false,
-                message: 'Token səhvdir və ya vaxtı bitib'
-            });
-        }
-
-        // Yeni şifrəni təyin et
-        user.password = req.body.password;
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-
-        await user.save();
-
-        // Token yarat
-        const token = generateToken(user._id);
-
-        res.status(200).json({
-            success: true,
-            message: 'Şifrə uğurla dəyişdirildi',
-            token
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            success: false,
-            message: 'Server xətası'
-        });
-    }
-});
-
-// @desc    Cari istifadəçini əldə et
-// @route   GET /api/auth/me
-// @access  Private
 router.get('/me', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
-        
+        const result = await pool.query(
+            `${buildUserSelectQuery()} WHERE id = $1`,
+            [req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'İstifadəçi tapılmadı.',
+            });
+        }
+
         res.status(200).json({
             success: true,
-            user
+            user: sanitizeUser(result.rows[0]),
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
+        console.error('İstifadəçi məlumatı xətası:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Server xətası'
+            message: 'Server xətası',
+        });
+    }
+});
+
+router.post('/forgotpassword', forgotPasswordLimiter, async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email || !isValidEmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Düzgün email daxil edin.',
+            });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const userResult = await pool.query(
+            `${buildUserSelectQuery()} WHERE email = $1`,
+            [normalizedEmail]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'Əgər email mövcuddursa, şifrəni sıfırlamaq üçün təlimatlar göndərildi.',
+            });
+        }
+
+        const user = userResult.rows[0];
+        const resetToken = buildResetToken();
+
+        await pool.query(
+            `UPDATE users
+             SET reset_password_token = $1,
+                 reset_password_expire = $2
+             WHERE id = $3`,
+            [resetToken.hashed, resetToken.expires, user.id]
+        );
+
+        const baseUrl = (process.env.PASSWORD_RESET_URL || process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/$/, '');
+        const resetUrl = `${baseUrl}/reset-password.html?token=${resetToken.raw}`;
+        const message = [
+            `Salam ${user.username || 'istifadəçi'},`,
+            '',
+            'Şifrənizi sıfırlamaq üçün aşağıdakı linkə daxil olun:',
+            resetUrl,
+            '',
+            'Bu link 10 dəqiqədən sonra etibarsız olacaq.',
+        ].join('\n');
+
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Şifrəni Sıfırlama Sorğusu',
+                message,
+            });
+        } catch (emailError) {
+            await pool.query(
+                `UPDATE users
+                 SET reset_password_token = NULL,
+                     reset_password_expire = NULL
+                 WHERE id = $1`,
+                [user.id]
+            );
+            console.error('Email göndərilərkən xəta:', emailError);
+            return res.status(500).json({
+                success: false,
+                message: 'Email göndərilərkən xəta baş verdi.',
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Əgər email mövcuddursa, şifrəni sıfırlamaq üçün təlimatlar göndərildi.',
+        });
+    } catch (error) {
+        console.error('Şifrə sıfırlama xətası:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server xətası',
+        });
+    }
+});
+
+router.put('/resetpassword/:resettoken', async (req, res) => {
+    try {
+        const { resettoken } = req.params;
+        const { password } = req.body;
+
+        if (!password || !isStrongPassword(password)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Yeni şifrə ən azı 8 simvoldan ibarət olmalıdır.',
+            });
+        }
+
+        const hashedToken = crypto.createHash('sha256').update(resettoken).digest('hex');
+        const userResult = await pool.query(
+            `${buildUserSelectQuery()} WHERE reset_password_token = $1 AND reset_password_expire > NOW()`,
+            [hashedToken]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reset token etibarsız və ya müddəti bitib.',
+            });
+        }
+
+        const user = userResult.rows[0];
+        const hashedPassword = await hashPassword(password);
+
+        await pool.query(
+            `UPDATE users
+             SET password = $1,
+                 reset_password_token = NULL,
+                 reset_password_expire = NULL,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [hashedPassword, user.id]
+        );
+
+        respondWithAuthSuccess(res, 200, 'Şifrə uğurla sıfırlandı', user);
+    } catch (error) {
+        console.error('Şifrə sıfırlama təsdiqi xətası:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server xətası',
         });
     }
 });
