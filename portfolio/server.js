@@ -11,6 +11,7 @@ const nodemailer = require('nodemailer');
 
 const { auth, admin } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
+const rssRoutes = require('./routes/rss');
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 }));
 
 app.use('/api/auth', authRoutes);
+app.use('/rss', rssRoutes);
 
 const allowedStaticFiles = {
     '/': 'index.html',
@@ -624,7 +626,7 @@ app.get('/api/posts/:slug', async (req, res) => {
                    u.username as author_username, u.profile_avatar as author_avatar
             FROM posts p
             JOIN users u ON p.user_id = u.id
-            WHERE p.slug = $1 AND p.status = {paramIndex}'published'
+            WHERE p.slug = $1 AND p.status = 'published'
         `, [slug]);
         
         if (result.rows.length === 0) {
