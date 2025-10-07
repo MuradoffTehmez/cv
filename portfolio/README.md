@@ -1,136 +1,228 @@
-# Portfolio Backend
+# Təhməz Muradov - Portfolio & Blog Saytı
 
-Bu layihə Təhməz Muradov üçün portfolio saytının backend hissəsidir. Node.js, Express və MongoDB istifadə edərək istifadəçi autentifikasiyası, layihə idarəetməsi və admin paneli funksiyalarını təmin edir.
+Modern və professional portfel saytı. Software & Cybersecurity Engineer üçün hazırlanmış tam funksional web tətbiqi.
 
-## Xüsusiyyətlər
+## 🚀 Xüsusiyyətlər
 
-- İstifadəçi qeydiyyatı və girişi
-- JWT əsaslı autentifikasiya
-- Şifrə sıfırlama sistemi
-- Layihələrin idarə edilməsi (yaratmaq, redaktə etmək, silmək)
-- Admin paneli
-- Profil idarəetməsi
-- Şifrə dəyişmə funksiyası
+### Frontend
+- ✅ Modern minimalist dizayn (Dark theme)
+- ✅ Tam responsive - bütün cihazlarda mükəmməl işləyir
+- ✅ Sürətli və yüngül performans
+- ✅ SEO optimizasiyası
+- ✅ Animasiyalı komponentlər (minimal və professional)
 
-## Tələblər
+### Backend
+- ✅ Node.js & Express framework
+- ✅ PostgreSQL verilənlər bazası
+- ✅ RESTful API
+- ✅ JWT autentifikasiya
+- ✅ Rate limiting və security headers (Helmet)
+- ✅ File upload (Multer)
+- ✅ Email bildirişləri (Nodemailer)
 
-- Node.js (v14 və ya daha yuxarı)
-- MongoDB (lokal və ya məsələn MongoDB Atlas)
+### Səhifələr
+1. **Ana Səhifə** - Hero section, xidmətlər, statistika, seçilmiş layihələr
+2. **Haqqında** - Şəxsi məlumat, iş təcrübəsi, təhsil
+3. **Bacarıqlar** - Texniki bacarıqlar, sertifikatlar, alətlər
+4. **Layihələr** - Portfolio layihələri showcase
+5. **Bloq** - Məqalələr və yazılar
+6. **Əlaqə** - Əlaqə formu
+7. **Admin Panel** - İstifadəçi və məzmun idarəetməsi
+8. **Profil** - İstifadəçi profili idarəetməsi
 
-## Quraşdırma
+### Funksionallıq
+- ✅ İstifadəçi qeydiyyatı və girişi
+- ✅ Admin paneli (CRUD əməliyyatları)
+- ✅ Bloq sistemı (posts, comments)
+- ✅ Layihə showcase
+- ✅ Əlaqə formu
+- ✅ RSS feed
+- ✅ Şifrə sıfırlama
+- ✅ Profile picture upload
+- ✅ Pagination
 
-1. Layihəni klonlayın və ya ZIP faylını açın
-2. Terminalda layihə qovluğuna daxil olun:
+## 🛠️ Texnologiyalar
 
-```bash
-cd portfolio
-```
+### Frontend
+- HTML5, CSS3
+- JavaScript (ES6+)
+- Modern CSS Grid & Flexbox
+- Intersection Observer API
+- Fetch API
 
-3. Tələb olunan modulları quraşdırın:
+### Backend
+- Node.js v16+
+- Express.js v4.x
+- PostgreSQL v12+
+- JWT (jsonwebtoken)
+- Bcrypt.js
+- Multer
+- Nodemailer v7.x
+- Helmet
+- CORS
+- Express Rate Limit
 
+## 📦 Quraşdırma
+
+### 1. Dependencies yükləyin
 ```bash
 npm install
 ```
 
-4. `.env` faylını yaradın və aşağıdakı məzmunu əlavə edin:
-
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/portfolio
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRE=7d
-NODE_ENV=development
-SMTP_HOST=smtp.your-email-service.com
-SMTP_PORT=587
-SMTP_EMAIL=your-email@domain.com
-SMTP_PASSWORD=your-email-password
+### 2. PostgreSQL verilənlər bazasını yaradın
+```sql
+CREATE DATABASE portfolio;
 ```
 
-> Qeyd: `MONGODB_URI` dəyərini öz lokal və ya MongoDB Atlas ünvanınıza uyğun olaraq dəyişdirin.
+### 3. Environment dəyişənləri konfiqurasiya edin
 
-## İşə salma
+`.env` faylı yaradın:
 
-Layihəni inkişaf rejimində işə salmaq üçün:
+```env
+# Server
+PORT=5000
+NODE_ENV=development
 
+# Database
+DB_USER=postgres
+DB_HOST=localhost
+DB_NAME=portfolio
+DB_PASSWORD=your_password
+DB_PORT=5432
+
+# JWT
+JWT_SECRET=your_very_secure_jwt_secret_key
+JWT_EXPIRE=7d
+
+# Email (Optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_EMAIL=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+CONTACT_EMAIL=contact@yourdomain.com
+
+# Site
+SITE_URL=http://localhost:5000
+SITE_TITLE=Portfolio Blog
+SITE_DESCRIPTION=Personal portfolio and blog
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5000
+```
+
+### 4. Serveri işə salın
+
+**Development mode:**
 ```bash
 npm run dev
 ```
 
-Və ya istehsal rejimində:
-
+**Production mode:**
 ```bash
 npm start
 ```
 
 Server `http://localhost:5000` ünvanında işə düşəcək.
 
-## API Uç Nöqtələri
+## 📂 Layihə Strukturu
+
+```
+portfolio/
+├── css/
+│   └── modern-style.css      # Əsas CSS faylı
+├── js/
+│   ├── script.js             # Əsas JavaScript
+│   └── api.js                # API çağırışları
+├── images/                   # Şəkillər
+├── uploads/                  # Yüklənmiş fayllar
+├── middleware/
+│   └── auth.js              # Autentifikasiya middleware
+├── routes/
+│   ├── auth.js              # Auth route-ları
+│   └── rss.js               # RSS feed
+├── utils/
+│   └── sendEmail.js         # Email utility
+├── *.html                   # HTML səhifələr
+├── server.js                # Express server
+├── package.json
+└── .env                     # Environment dəyişənləri
+```
+
+## 🔐 Admin Panel
+
+Admin panelə daxil olmaq üçün admin istifadəçisi yaradın və `/admin.html` səhifəsinə daxil olun.
+
+### Admin Funksiyaları:
+- İstifadəçi idarəetməsi
+- Layihə idarəetməsi
+- Bloq məqalələri idarəetməsi
+- Rəy moderasiyası
+- Mesaj idarəetməsi
+- Statistika
+
+## 📡 API Endpoints
 
 ### Autentifikasiya
-
-- `POST /api/auth/register` - İstifadəçi qeydiyyatı
+- `POST /api/auth/register` - Yeni istifadəçi qeydiyyatı
 - `POST /api/auth/login` - İstifadəçi girişi
+- `GET /api/auth/me` - Cari istifadəçi məlumatı
 - `POST /api/auth/forgotpassword` - Şifrə sıfırlama
-- `PUT /api/auth/resetpassword/:resettoken` - Şifrəni sıfırla
-- `GET /api/auth/me` - Cari istifadəçini əldə et
+- `PUT /api/auth/resetpassword/:token` - Şifrəni təzələ
 
 ### İstifadəçi
-
-- `GET /api/user/profile` - İstifadəçi profilini əldə et
-- `PUT /api/user/profile` - İstifadəçi profilini yenilə
+- `GET /api/user/profile` - Profil məlumatı
+- `PUT /api/user/profile` - Profil yenilə
+- `PUT /api/user/avatar` - Profil şəkli yüklə
 - `PUT /api/user/changepassword` - Şifrəni dəyiş
-- `GET /api/user/projects` - İstifadəçinin layihələrini əldə et
 
 ### Layihələr
+- `GET /api/projects` - Bütün layihələr
+- `GET /api/projects/:id` - Layihə detalı
+- `GET /api/homepage` - Ana səhifə məlumatları
 
-- `GET /api/project` - Bütün layihələri əldə et
-- `GET /api/project/:id` - Tək layihəni əldə et
-- `POST /api/project` - Layihə yarat (tələb olunan: autentifikasiya)
-- `PUT /api/project/:id` - Layihəni yenilə (tələb olunan: sahib və ya admin)
-- `DELETE /api/project/:id` - Layihəni sil (tələb olunan: sahib və ya admin)
+### Bloq
+- `GET /api/posts` - Bütün məqalələr
+- `GET /api/posts/:slug` - Məqalə detalı
+- `POST /api/posts` - Yeni məqalə (admin)
+- `PUT /api/posts/:id` - Məqalə redaktə (admin)
+- `DELETE /api/posts/:id` - Məqalə sil (admin)
 
-### Admin
+### RSS
+- `GET /rss` - RSS feed
 
-- `GET /api/admin/users` - Bütün istifadəçiləri əldə et (tələb olunan: admin)
-- `GET /api/admin/users/:id` - Tək istifadəçini əldə et (tələb olunan: admin)
-- `DELETE /api/admin/users/:id` - İstifadəçini sil (tələb olunan: admin)
-- `PUT /api/admin/users/:id/role` - İstifadəçi rolu dəyiş (tələb olunan: admin)
-- `GET /api/admin/projects` - Bütün layihələri əldə et (tələb olunan: admin)
-- `DELETE /api/admin/projects` - Bütün layihələri sil (tələb olunan: admin)
+## 🎨 Dizayn
 
-## HTTP Cavab Formatı
+### Rəng Sxemi (Dark Theme)
+- Primary: `#2563eb` (Mavi)
+- Secondary: `#1e40af` (Tünd mavi)
+- Background: `#0f172a` (Tünd fon)
 
-Cavablar aşağıdakı formatda qaytarılır:
+### Font
+- Inter (Google Fonts)
 
-```json
-{
-  "success": true,
-  "message": "Əməliyyat uğurla yerinə yetirildi",
-  "data": {}
-}
-```
+## 🔒 Təhlükəsizlik
 
-Xəta halında:
+- ✅ JWT token-based autentifikasiya
+- ✅ Bcrypt password hashing
+- ✅ Helmet.js security headers
+- ✅ CORS konfiqurasiyası
+- ✅ Rate limiting
+- ✅ Input validation
+- ✅ SQL injection protection
 
-```json
-{
-  "success": false,
-  "message": "Xəta məlumatı",
-  "errors": []
-}
-```
+## 📱 Responsive Dizayn
 
-## Təhlükəsizlik
+Bütün ekran ölçülərində mükəmməl işləyir:
+- Mobile: 320px+
+- Tablet: 768px+
+- Desktop: 1024px+
 
-- Bütün şifrələr bcrypt ilə hash edilir
-- JWT token-lar istifadə olunur
-- Middleware ilə giriş icazələri yoxlanılır
-- Giriş icazəsi olmayan əməliyyatlarda 401 və 403 status kodları qaytarılır
+## 👨‍💻 Müəllif
 
-## Müəllif
+**Təhməz Muradov**
+- Software & Cybersecurity Engineer
+- Email: info@tehmazmuradov.az
 
-Assistant
+---
 
-## Lisenziya
-
-MIT
+**Made with ❤️ in Azerbaijan** 🇦🇿
