@@ -1132,6 +1132,10 @@ app.get('/api/admin/stats', auth, admin, async (req, res) => {
     }
 });
 
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/rss', rssRoutes);
+
 // Server başlayanda cədvəlləri yarat
 createTables().then(() => {
     const PORT = process.env.PORT || 5000;

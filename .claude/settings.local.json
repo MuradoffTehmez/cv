@@ -7,7 +7,12 @@
       "Bash(cat:*)",
       "Bash(npm run dev:*)",
       "Bash(git checkout:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(nc localhost 5000)"
     ],
     "deny": [],
     "ask": []
