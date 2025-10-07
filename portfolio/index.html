@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Təhməz Muradov | Software & Cybersecurity Engineer</title>
+    <meta name="description" content="Təhməz Muradov - 4+ il təcrübəli Software & Cybersecurity Engineer. Portfolio və blog saytı.">
     <link rel="stylesheet" href="css/modern-style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,16 +16,15 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-logo">
-                <a href="index.html">Təhməz Muradov</a>
+                <a href="index.html">TM</a>
             </div>
             <div class="nav-menu" id="nav-menu">
                 <a href="index.html" class="nav-link active">Ana Səhifə</a>
                 <a href="about.html" class="nav-link">Haqqında</a>
+                <a href="skills.html" class="nav-link">Bacarıqlar</a>
                 <a href="projects.html" class="nav-link">Layihələr</a>
                 <a href="blog.html" class="nav-link">Bloq</a>
                 <a href="contact.html" class="nav-link">Əlaqə</a>
-                <a href="login.html" class="nav-link">Giriş</a>
-                <a href="profile.html" class="nav-link">Profil</a>
             </div>
             <div class="nav-toggle" id="mobile-menu">
                 <span class="bar"></span>
@@ -35,47 +35,331 @@
     </nav>
 
     <main>
+        <!-- Hero Section -->
         <section class="hero">
             <div class="hero-content">
+                <div class="hero-greeting">Salam, mən</div>
                 <h1>Təhməz Muradov</h1>
-                <h2>Software & Cybersecurity Engineer</h2>
-                <p>4 ildən artıq təcrübəyə malik proqram təminatı və kiber təhlükəsizlik mühəndisi</p>
-                <div class="hero-stats">
-                    <div class="stat">
-                        <span class="stat-number">4+</span>
-                        <span class="stat-label">İl Təcrübə</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">15+</span>
-                        <span class="stat-label">Layihə</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">5</span>
-                        <span class="stat-label">Sertifikat</span>
-                    </div>
-                </div>
+                <h2><span class="typing-text">Software & Cybersecurity Engineer</span></h2>
+                <p>Proqram təminatı inkişafı və kiber təhlükəsizlik sahəsində ixtisaslaşmış mühəndis. İnnovasiya və texnologiya ilə təhlükəsiz gələcək qurmaq.</p>
+
                 <div class="hero-buttons">
-                    <a href="about.html" class="btn btn-primary">Ətraflı Məlumat</a>
-                    <a href="projects.html" class="btn btn-secondary">Layihələr</a>
+                    <a href="about.html" class="btn btn-primary">Mənim Haqqımda</a>
+                    <a href="projects.html" class="btn btn-secondary">Layihələrə Bax</a>
                     <a href="contact.html" class="btn btn-secondary">Əlaqə</a>
+                </div>
+
+                <div class="hero-social">
+                    <a href="https://github.com" target="_blank" aria-label="GitHub">
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                    </a>
+                    <a href="https://linkedin.com" target="_blank" aria-label="LinkedIn">
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                        </svg>
+                    </a>
+                    <a href="https://twitter.com" target="_blank" aria-label="Twitter">
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                        </svg>
+                    </a>
                 </div>
             </div>
         </section>
-        
-        <section class="featured-section">
+
+        <!-- Stats Section -->
+        <section class="stats-section">
             <div class="container">
-                <h2>Ən Son Layihələr</h2>
-                <div class="restricted-content">
-                    <div class="recent-projects">
-                        <!-- Layihələr burada yüklənəcək -->
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number" data-count="4">0</span><span class="stat-number">+</span>
+                        <span class="stat-label">İl Təcrübə</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-count="50">0</span><span class="stat-number">+</span>
+                        <span class="stat-label">Tamamlanmış Layihə</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-count="15">0</span><span class="stat-number">+</span>
+                        <span class="stat-label">Texnologiya</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-count="100">0</span><span class="stat-number">+</span>
+                        <span class="stat-label">Məmnun Müştəri</span>
                     </div>
                 </div>
-                <p class="login-prompt">Bu məlumatlara baxmaq üçün <a href="login.html">giriş etməlisiniz</a>.</p>
+            </div>
+        </section>
+
+        <!-- Services Section -->
+        <section class="services-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Xidmətlər</h2>
+                    <p>Təklif etdiyim peşəkar xidmətlər</p>
+                </div>
+
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-icon">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                            </svg>
+                        </div>
+                        <h3>Web Development</h3>
+                        <p>Modern və responsive web tətbiqlərinin hazırlanması. Full-stack inkişaf xidmətləri.</p>
+                    </div>
+
+                    <div class="service-card">
+                        <div class="service-icon">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                        </div>
+                        <h3>Cybersecurity</h3>
+                        <p>Kiber təhlükəsizlik audit, penetrasiya testi və zəiflik qiymətləndirməsi xidmətləri.</p>
+                    </div>
+
+                    <div class="service-card">
+                        <div class="service-icon">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                            </svg>
+                        </div>
+                        <h3>Software Development</h3>
+                        <p>Desktop və mobile tətbiqlər, korporativ proqram təminatı həllərinin inkişafı.</p>
+                    </div>
+
+                    <div class="service-card">
+                        <div class="service-icon">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <h3>Consulting</h3>
+                        <p>Texnoloji məsləhət, arxitektura dizaynı və layihə idarəetməsi xidmətləri.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Featured Projects -->
+        <section class="featured-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Seçilmiş Layihələr</h2>
+                    <p>Ən son və maraqlı layihələrim</p>
+                </div>
+                <div class="recent-projects" id="featured-projects">
+                    <!-- Projects will be loaded here -->
+                    <div class="project-card">
+                        <div class="project-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 200px; border-radius: 8px 8px 0 0;"></div>
+                        <div class="project-info">
+                            <h3>Portfolio Website</h3>
+                            <p>Şəxsi portfolio və bloq saytı. Node.js, Express, PostgreSQL texnologiyaları ilə.</p>
+                            <div class="tech-stack">
+                                <span class="tech">Node.js</span>
+                                <span class="tech">Express</span>
+                                <span class="tech">PostgreSQL</span>
+                                <span class="tech">JavaScript</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="project-card">
+                        <div class="project-image" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); height: 200px; border-radius: 8px 8px 0 0;"></div>
+                        <div class="project-info">
+                            <h3>Security Scanner</h3>
+                            <p>Web tətbiqləri üçün təhlükəsizlik skaneri və zəiflik analiz aləti.</p>
+                            <div class="tech-stack">
+                                <span class="tech">Python</span>
+                                <span class="tech">Security</span>
+                                <span class="tech">Pentesting</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="project-card">
+                        <div class="project-image" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); height: 200px; border-radius: 8px 8px 0 0;"></div>
+                        <div class="project-info">
+                            <h3>E-Commerce Platform</h3>
+                            <p>Tam funksionallı e-ticarət platforması. Ödəniş sistemləri inteqrasiyası ilə.</p>
+                            <div class="tech-stack">
+                                <span class="tech">C#</span>
+                                <span class="tech">ASP.NET</span>
+                                <span class="tech">SQL Server</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="projects.html" class="btn btn-primary">Bütün Layihələr</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Latest Blog Posts -->
+        <section class="blog-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Son Bloq Yazıları</h2>
+                    <p>Texnologiya və kiber təhlükəsizlik haqqında yazılar</p>
+                </div>
+                <div class="blog-grid" id="latest-posts">
+                    <!-- Blog posts will be loaded here -->
+                </div>
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="blog.html" class="btn btn-secondary">Bütün Yazılar</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="cta-section">
+            <div class="container">
+                <div class="cta-content">
+                    <h2>Layihəniz üçün hazırsınız?</h2>
+                    <p>Gəlin birlikdə işləyək və fikrinizi reallığa çevirək</p>
+                    <a href="contact.html" class="btn btn-primary">Əlaqə Saxlayın</a>
+                </div>
             </div>
         </section>
     </main>
 
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Təhməz Muradov</h3>
+                    <p>Software & Cybersecurity Engineer</p>
+                    <div class="footer-social">
+                        <a href="https://github.com" target="_blank" aria-label="GitHub">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                            </svg>
+                        </a>
+                        <a href="https://linkedin.com" target="_blank" aria-label="LinkedIn">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                            </svg>
+                        </a>
+                        <a href="https://twitter.com" target="_blank" aria-label="Twitter">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Bağlantılar</h4>
+                    <ul>
+                        <li><a href="about.html">Haqqında</a></li>
+                        <li><a href="skills.html">Bacarıqlar</a></li>
+                        <li><a href="projects.html">Layihələr</a></li>
+                        <li><a href="blog.html">Bloq</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Xidmətlər</h4>
+                    <ul>
+                        <li><a href="#">Web Development</a></li>
+                        <li><a href="#">Cybersecurity</a></li>
+                        <li><a href="#">Software Development</a></li>
+                        <li><a href="#">Consulting</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Əlaqə</h4>
+                    <ul>
+                        <li>Email: info@tehmazmuradov.az</li>
+                        <li>Telefon: +994 XX XXX XX XX</li>
+                        <li>Yer: Naxçıvan, Azərbaycan</li>
+                        <li><a href="contact.html">Əlaqə Forması</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2024 Təhməz Muradov. Bütün hüquqlar qorunur.</p>
+                <div class="footer-links">
+                    <a href="rss">RSS</a>
+                    <a href="login.html">Giriş</a>
+                    <a href="admin.html">Admin</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="js/script.js"></script>
     <script src="js/api.js"></script>
+    <script>
+        // Counter animation
+        const counters = document.querySelectorAll('.stat-number[data-count]');
+        counters.forEach(counter => {
+            const target = +counter.getAttribute('data-count');
+            const increment = target / 50;
+
+            const updateCounter = () => {
+                const current = +counter.innerText;
+                if (current < target) {
+                    counter.innerText = Math.ceil(current + increment);
+                    setTimeout(updateCounter, 30);
+                } else {
+                    counter.innerText = target;
+                }
+            };
+
+            // Start animation when in viewport
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        updateCounter();
+                        observer.unobserve(entry.target);
+                    }
+                });
+            });
+
+            observer.observe(counter);
+        });
+
+        // Load latest blog posts
+        async function loadLatestPosts() {
+            try {
+                const response = await fetch('/api/posts?limit=3');
+                const data = await response.json();
+
+                if (data.success && data.posts.length > 0) {
+                    const postsHTML = data.posts.map(post => `
+                        <div class="blog-card">
+                            ${post.featured_image ? `<div class="blog-image" style="background-image: url('${post.featured_image}');"></div>` : ''}
+                            <div class="blog-info">
+                                <div class="blog-meta">
+                                    <span>${new Date(post.created_at).toLocaleDateString('az-AZ')}</span>
+                                    <span>•</span>
+                                    <span>${post.author_username}</span>
+                                </div>
+                                <h3>${post.title}</h3>
+                                <p>${post.excerpt || ''}</p>
+                                <a href="post-detail.html?slug=${post.slug}" class="btn btn-secondary">Oxu</a>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    document.getElementById('latest-posts').innerHTML = postsHTML;
+                }
+            } catch (error) {
+                console.error('Blog posts yüklənə bilmədi:', error);
+            }
+        }
+
+        loadLatestPosts();
+    </script>
 </body>
 </html>

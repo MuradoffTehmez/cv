@@ -1,4 +1,5 @@
 const express = require('express');
+<<<<<<< HEAD
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -377,4 +378,19 @@ router.put('/resetpassword/:resettoken', async (req, res) => {
     }
 });
 
+=======
+
+// Legacy MongoDB-based auth routes have been retired in favour of the
+// PostgreSQL implementation located in server.js. This placeholder router
+// ensures that any accidental mounts fail fast with a clear response.
+const router = express.Router();
+
+router.use((req, res) => {
+    res.status(410).json({
+        success: false,
+        message: 'Bu autentifikasiya endpoint-i köhnə MongoDB modeli üçündür və deaktiv edilib.'
+    });
+});
+
+>>>>>>> f9297cf571769da439d04e75e53e93291bb41b0f
 module.exports = router;

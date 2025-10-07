@@ -18,21 +18,20 @@ const auth = async (req, res, next) => {
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
             token = req.headers.authorization.split(' ')[1];
-
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
             const userResult = await pool.query('SELECT id, username, email, role FROM users WHERE id = $1', [decoded.id]);
-            req.user = userResult.rows[0];
 
-            if (!req.user) {
+            if (userResult.rows.length === 0) {
                 return res.status(401).json({
                     success: false,
-                    message: 'Giriş icazəsi yoxdur',
+                    message: 'İstifadəçi tapılmadı'
                 });
             }
 
+            req.user = userResult.rows[0];
             return next();
         } catch (error) {
+            console.error('Auth middleware xəta:', error);
             return res.status(401).json({
                 success: false,
                 message: 'Giriş icazəsi yoxdur',
@@ -63,16 +62,17 @@ const admin = async (req, res, next) => {
         if (!user || user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
-                message: 'Giriş icazəsi yoxdur. Yalnız admin istifadəçilərə icazə verilir',
+                message: 'Giriş icazəsi yoxdur. Yalnız admin istifadəçilərə icazə verilir'
             });
         }
 
         req.user = user;
         return next();
     } catch (error) {
+        console.error('Admin middleware xəta:', error);
         return res.status(500).json({
             success: false,
-            message: 'Server xətası',
+            message: 'Server xətası'
         });
     }
 };
