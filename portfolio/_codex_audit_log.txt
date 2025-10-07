@@ -1,0 +1,5 @@
+[2025-10-07] Updated server.js to harden static asset exposure, parameterize admin queries, enforce Nodemailer environment usage, and extend the messages schema with updated_at defaults.
+[2025-10-07] Updated utils/sendEmail.js to require environment-based SMTP configuration and use nodemailer.createTransport.
+[2025-10-07] Replaced legacy MongoDB route modules with 410 Gone placeholders to reflect PostgreSQL backend usage.
+[2025-10-07] Rebuilt middleware/auth.js to authenticate against PostgreSQL instead of MongoDB.
+[2025-10-07] Adjusted server-pg.js static file handling and added an empty public directory for safe asset hosting.

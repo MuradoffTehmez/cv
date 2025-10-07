@@ -53,8 +53,8 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Statik fayllar üçün middleware (front-end)
-app.use(express.static(path.join(__dirname, '.')));
+// Statik fayllar üçün middleware (yalnız public qovluğu)
+app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Şəkilləri saxlamaq üçün uploads qovluğu yarat
@@ -189,7 +189,8 @@ const createTables = async () => {
                 subject VARCHAR(200) NOT NULL,
                 message TEXT NOT NULL,
                 is_read BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
@@ -627,36 +628,36 @@ app.get('/api/admin/users', auth, admin, async (req, res) => {
         let paramIndex = 1;
         
         if (search) {
-            whereClause += ` AND (username ILIKE ${paramIndex} OR email ILIKE ${paramIndex})`;
+            whereClause += ` AND (username ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
             queryParams.push(`%${search}%`);
             paramIndex++;
         }
-        
+
         if (role) {
-            whereClause += ` AND role = ${paramIndex}`;
+            whereClause += ` AND role = $${paramIndex}`;
             queryParams.push(role);
             paramIndex++;
         }
-        
-        // Calculate the actual parameter positions for LIMIT and OFFSET
+
         const limitParamPos = queryParams.length + 1;
         const offsetParamPos = queryParams.length + 2;
-        
+        const dataParams = [...queryParams, limit, offset];
+
         // İstifadəçiləri əldə et
         const result = await pool.query(
-            `SELECT id, username, email, role, created_at 
-             FROM users 
-             WHERE 1=1 ${whereClause}
+            `SELECT id, username, email, role, created_at
+             FROM users
+             WHERE 1=1${whereClause}
              ORDER BY created_at DESC
-             LIMIT ${limitParamPos} OFFSET ${offsetParamPos}`,
-            [...queryParams, limit, offset]
+             LIMIT $${limitParamPos} OFFSET $${offsetParamPos}`,
+            dataParams
         );
-        
+
         // Ümumi sayı əldə et
         const countResult = await pool.query(
-            `SELECT COUNT(*) as total 
-             FROM users 
-             WHERE 1=1 ${whereClause}`,
+            `SELECT COUNT(*) as total
+             FROM users
+             WHERE 1=1${whereClause}`,
             queryParams
         );
         
@@ -700,39 +701,39 @@ app.get('/api/admin/projects', auth, admin, async (req, res) => {
         let paramIndex = 1;
         
         if (search) {
-            whereClause += ` AND (p.title ILIKE ${paramIndex} OR p.description ILIKE ${paramIndex})`;
+            whereClause += ` AND (p.title ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
             queryParams.push(`%${search}%`);
             paramIndex++;
         }
-        
+
         if (status) {
-            whereClause += ` AND p.status = ${paramIndex}`;
+            whereClause += ` AND p.status = $${paramIndex}`;
             queryParams.push(status);
             paramIndex++;
         }
-        
-        // Calculate the actual parameter positions for LIMIT and OFFSET
+
         const limitParamPos = queryParams.length + 1;
         const offsetParamPos = queryParams.length + 2;
-        
+        const dataParams = [...queryParams, limit, offset];
+
         // Layihələri əldə et
         const result = await pool.query(`
-            SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status, 
+            SELECT p.id, p.title, p.description, p.technologies, p.start_date, p.end_date, p.status,
                    p.image_url, p.project_url, u.username as user_username, u.email as user_email
             FROM projects p
             JOIN users u ON p.user_id = u.id
-            WHERE 1=1 ${whereClause}
+            WHERE 1=1${whereClause}
             ORDER BY p.created_at DESC
-            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}`,
-            [...queryParams, limit, offset]
+            LIMIT $${limitParamPos} OFFSET $${offsetParamPos}`,
+            dataParams
         );
 
         // Ümumi sayı əldə et
         const countResult = await pool.query(
-            `SELECT COUNT(*) as total 
+            `SELECT COUNT(*) as total
              FROM projects p
              JOIN users u ON p.user_id = u.id
-             WHERE 1=1 ${whereClause}`,
+             WHERE 1=1${whereClause}`,
             queryParams
         );
         
@@ -1059,13 +1060,13 @@ app.post('/api/contact', async (req, res) => {
         `, [name, email, subject, message]);
         
         // Əgər konfiqurasiya varsa, email göndərilir
-        if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
+        if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD && process.env.SMTP_HOST && process.env.SMTP_PORT) {
             const nodemailer = require('nodemailer');
-            
-            const transporter = nodemailer.createTransporter({
-                host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-                port: process.env.SMTP_PORT || 587,
-                secure: false, // true for 465, false for other ports
+
+            const transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST,
+                port: Number(process.env.SMTP_PORT),
+                secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : Number(process.env.SMTP_PORT) === 465,
                 auth: {
                     user: process.env.SMTP_EMAIL,
                     pass: process.env.SMTP_PASSWORD
@@ -1094,6 +1095,8 @@ Message: ${message}
             };
 
             await transporter.sendMail(mailOptions);
+        } else {
+            console.warn('SMTP mühit dəyişənləri tam konfiqurasiya edilməyib, email göndərilməsi atlanır.');
         }
         
         res.status(200).json({
@@ -1124,21 +1127,21 @@ app.get('/api/admin/comments', auth, admin, async (req, res) => {
         let paramIndex = 1;
         
         if (status) {
-            whereClause += ` AND c.status = ${paramIndex} `;
+            whereClause += ` AND c.status = $${paramIndex} `;
             queryParams.push(status);
             paramIndex++;
         }
-        
+
         if (search) {
-            whereClause += ` AND (c.content ILIKE ${paramIndex} OR u.username ILIKE ${paramIndex}) `;
+            whereClause += ` AND (c.content ILIKE $${paramIndex} OR u.username ILIKE $${paramIndex}) `;
             queryParams.push(`%${search}%`);
             paramIndex++;
         }
-        
-        // Calculate the actual parameter positions for LIMIT and OFFSET
+
         const limitParamPos = queryParams.length + 1;
         const offsetParamPos = queryParams.length + 2;
-        
+        const dataParams = [...queryParams, limit, offset];
+
         // Rəyləri əldə edirik
         const result = await pool.query(`
             SELECT c.id, c.content, c.status, c.created_at, c.updated_at,
@@ -1146,18 +1149,18 @@ app.get('/api/admin/comments', auth, admin, async (req, res) => {
             FROM comments c
             JOIN users u ON c.user_id = u.id
             JOIN posts p ON c.post_id = p.id
-            WHERE 1=1 ${whereClause}
+            WHERE 1=1${whereClause}
             ORDER BY c.created_at DESC
-            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}
-        `, [...queryParams, limit, offset]);
-        
+            LIMIT $${limitParamPos} OFFSET $${offsetParamPos}
+        `, dataParams);
+
         // Ümumi say
         const countResult = await pool.query(`
             SELECT COUNT(*) as total
             FROM comments c
             JOIN users u ON c.user_id = u.id
             JOIN posts p ON c.post_id = p.id
-            WHERE 1=1 ${whereClause}
+            WHERE 1=1${whereClause}
         `, queryParams);
         
         const total = parseInt(countResult.rows[0].total);
@@ -1258,35 +1261,35 @@ app.get('/api/admin/messages', auth, admin, async (req, res) => {
         let paramIndex = 1;
         
         if (is_read !== undefined) {
-            whereClause += ` AND m.is_read = ${paramIndex} `;
+            whereClause += ` AND m.is_read = $${paramIndex} `;
             queryParams.push(is_read === 'true');
             paramIndex++;
         }
-        
+
         if (search) {
-            whereClause += ` AND (m.name ILIKE ${paramIndex} OR m.email ILIKE ${paramIndex} OR m.subject ILIKE ${paramIndex} OR m.message ILIKE ${paramIndex}) `;
+            whereClause += ` AND (m.name ILIKE $${paramIndex} OR m.email ILIKE $${paramIndex} OR m.subject ILIKE $${paramIndex} OR m.message ILIKE $${paramIndex}) `;
             queryParams.push(`%${search}%`);
             paramIndex++;
         }
-        
-        // Calculate the actual parameter positions for LIMIT and OFFSET
+
         const limitParamPos = queryParams.length + 1;
         const offsetParamPos = queryParams.length + 2;
-        
+        const dataParams = [...queryParams, limit, offset];
+
         // Mesajları əldə edirik
         const result = await pool.query(`
-            SELECT m.id, m.name, m.email, m.subject, m.message, m.is_read, m.created_at
+            SELECT m.id, m.name, m.email, m.subject, m.message, m.is_read, m.created_at, m.updated_at
             FROM messages m
-            WHERE 1=1 ${whereClause}
+            WHERE 1=1${whereClause}
             ORDER BY m.created_at DESC
-            LIMIT ${limitParamPos} OFFSET ${offsetParamPos}
-        `, [...queryParams, limit, offset]);
-        
+            LIMIT $${limitParamPos} OFFSET $${offsetParamPos}
+        `, dataParams);
+
         // Ümumi say
         const countResult = await pool.query(`
             SELECT COUNT(*) as total
             FROM messages m
-            WHERE 1=1 ${whereClause}
+            WHERE 1=1${whereClause}
         `, queryParams);
         
         const total = parseInt(countResult.rows[0].total);
